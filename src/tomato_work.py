@@ -3,6 +3,7 @@ import random
 import subprocess
 import sys
 import time
+import webbrowser
 from ctypes import Structure, windll, c_uint, sizeof, byref
 
 import pyautogui
@@ -11,7 +12,6 @@ import win32gui
 
 from common import gui
 from common import python_box as box
-import webbrowser
 
 
 class Sheep:
@@ -42,7 +42,6 @@ class Sheep:
             join = os.path.join(path, "bin", "DesktopPet.exe")
             if os.path.exists(join):
                 return join
-
 
     def add(self):
         sheep_exe = self.find_sheep_exec()
@@ -137,7 +136,7 @@ class WindowsBalloonTip:
         win32gui.DestroyWindow(self.hwnd)
 
 
-if __name__ == '__main__':
+def run():
     if len(sys.argv) > 1 and sys.argv[1] == "test":
         is_cal = False  # 是否计算跳过
         work_time = 2  # 工作时间
@@ -171,3 +170,11 @@ if __name__ == '__main__':
             sheep.add()
     sheep.remove_all()
     balloon_tip.destroy()
+
+
+if __name__ == '__main__':
+    if "task" in sys.argv:
+        run()
+    else:
+        for _ in range(24):
+            run()
