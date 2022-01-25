@@ -9,6 +9,7 @@ from ctypes import Structure, windll, c_uint, sizeof, byref
 import pyautogui
 import win32con
 import win32gui
+import ctypes
 
 from common import gui
 from common import python_box as box
@@ -136,8 +137,19 @@ class WindowsBalloonTip:
         win32gui.DestroyWindow(self.hwnd)
 
 
+def get_start_time():
+    # getting the library in which GetTickCount64() resides
+    lib = ctypes.windll.kernel32
+    # calling the function and storing the return value
+    t = lib.GetTickCount64()
+    # since the time is in milliseconds i.e. 1000 * seconds
+    # therefore truncating the value
+    t = int(str(t)[:-3])
+    return t
+
+
 def run():
-    if len(sys.argv) > 1 and sys.argv[1] == "test":
+    if "test" in sys.argv:
         is_cal = False  # 是否计算跳过
         work_time = 2  # 工作时间
         relax_need_time = 5  # 要求休息时间
@@ -173,6 +185,8 @@ def run():
 
 
 if __name__ == '__main__':
+    if get_start_time() < 200:
+        time.sleep(300)
     if "task" in sys.argv:
         run()
     else:
