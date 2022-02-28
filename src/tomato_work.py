@@ -160,7 +160,7 @@ def run():
         relax_need_time = 5 * 60
         ide_need_time = 4 * 60
     title = "番茄钟"
-    text = "开始工作"
+    text = "番茄钟开始"
     balloon_tip = WindowsBalloonTip(title, text)
     pyautogui.confirm(title=title, text=text)
     time.sleep(work_time)
