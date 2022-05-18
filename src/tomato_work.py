@@ -154,7 +154,7 @@ class PomodoroClock:
     host = "mq host"
     port = "mq port"
     message = "send message"
-    ini = "config/config.ini"
+    ini = "config/config_tomato.ini"
     today = "today"
     use_time = "use time"
 
