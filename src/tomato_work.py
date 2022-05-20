@@ -216,15 +216,21 @@ class PomodoroClock:
             balloon_tip.destroy()
 
     def add_send_time(self, duration: float):
+        """
+        写入时间信息并发送ha服务器
+        :param duration: 增加时间，秒
+        :return:
+        """
+        # 新的一天重计时
         if self._today != python_box.date_format(day=True):
             self._today = python_box.date_format(day=True)
-            config[self.today] = self._today
             self._use_time = 0
-        self._use_time += duration
-        config[self.use_time] = self._use_time / 60
+            config[self.today] = self._today
+        self._use_time += duration / 60
+        config[self.use_time] = self._use_time
         python_box.write_config(config, PomodoroClock.ini)
         if self.ha:
-            self.ha.send_state(f"{'%.2f' % (self._use_time / 60)} 分钟")
+            self.ha.send_state(f"{'%.2f' % (self._use_time)} 分钟")
 
 
 if __name__ == '__main__':
