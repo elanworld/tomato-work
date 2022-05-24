@@ -178,11 +178,13 @@ class PomodoroClock:
             work_time = 2  # 工作时间
             relax_need_time = 5  # 要求休息时间
             ide_need_time = 4  # 检测空闲时间
+            wait_loop_time = 2 # 等待循环空闲时间
         else:
             is_cal = False
             work_time = 25 * 60
             relax_need_time = 5 * 60
             ide_need_time = 4 * 60
+            wait_loop_time = 60
         title = "番茄钟"
         text = "番茄钟开始"
         balloon_tip = None
@@ -190,7 +192,16 @@ class PomodoroClock:
             balloon_tip = WindowsBalloonTip(title, text)
         except Exception as e:
             print(e)
-        pyautogui.confirm(title=title, text=text)
+        pyautogui.confirm(title=title, text=text, timeout=3 * 5000)
+        # 空闲等待三十分钟
+        wait_time = 0
+        for _ in range(30):
+            if get_idle_duration() < wait_loop_time:
+                pyautogui.confirm(title=title, text=text)
+                break
+            time.sleep(wait_loop_time)
+            wait_time += wait_loop_time
+        pyautogui.confirm(title=title, text=text, timeout=5 * 5000)
         # 番茄钟开始
         time.sleep(work_time)
         self.add_send_time(work_time)
