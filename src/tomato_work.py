@@ -178,7 +178,7 @@ class PomodoroClock:
             work_time = 2  # 工作时间
             relax_need_time = 5  # 要求休息时间
             ide_need_time = 4  # 检测空闲时间
-            wait_loop_time = 2 # 等待循环空闲时间
+            wait_loop_time = 2  # 等待循环空闲时间
         else:
             is_cal = False
             work_time = 25 * 60
@@ -195,7 +195,7 @@ class PomodoroClock:
         pyautogui.confirm(title=title, text=text, timeout=3 * 5000)
         # 空闲等待三十分钟
         wait_time = 0
-        for _ in range(30):
+        for _ in range(60 * 5):
             if get_idle_duration() < wait_loop_time:
                 pyautogui.confirm(title=title, text=text)
                 break
