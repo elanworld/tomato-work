@@ -164,7 +164,6 @@ class PomodoroClock:
         self.ha = None
         if config.get(self.message):
             base = MqttBase(config.get(self.host), int(config.get(self.port)))
-            base.connect()
             self.ha = HomeAssistantEntity(base)
             self.ha.config_topic("day_use", "当日使用时长")
 
