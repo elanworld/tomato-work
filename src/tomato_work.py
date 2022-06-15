@@ -163,9 +163,12 @@ class PomodoroClock:
         self._use_time = float(config.get(self.use_time))
         self.ha = None
         if config.get(self.message):
-            base = MqttBase(config.get(self.host), int(config.get(self.port)))
-            self.ha = HomeAssistantEntity(base)
-            self.ha.config_topic("day_use", "当日使用时长")
+            try:
+                base = MqttBase(config.get(self.host), int(config.get(self.port)))
+                self.ha = HomeAssistantEntity(base)
+                self.ha.config_topic("day_use", "当日使用时长")
+            except Exception as e:
+                print(e)
 
     def __del__(self):
         if self.ha:
@@ -177,13 +180,11 @@ class PomodoroClock:
             work_time = 2  # 工作时间
             relax_need_time = 5  # 要求休息时间
             ide_need_time = 4  # 检测空闲时间
-            wait_loop_time = 2  # 等待循环空闲时间
         else:
             is_cal = False
             work_time = 25 * 60
             relax_need_time = 5 * 60
             ide_need_time = 4 * 60
-            wait_loop_time = 60
         title = "番茄钟"
         text = "番茄钟开始"
         balloon_tip = None
@@ -191,16 +192,18 @@ class PomodoroClock:
             balloon_tip = WindowsBalloonTip(title, text)
         except Exception as e:
             print(e)
-        pyautogui.confirm(title=title, text=text, timeout=3 * 5000)
-        # 空闲等待三十分钟
+        if get_idle_duration() > 5:
+            pyautogui.confirm(title=title, text=text, timeout=3 * 5000)
+        # 空闲等待五小时
         wait_time = 0
-        for _ in range(60 * 5):
-            if get_idle_duration() < wait_loop_time:
+        while True:
+            if get_idle_duration() < 2:
                 pyautogui.confirm(title=title, text=text)
                 break
-            time.sleep(wait_loop_time)
-            wait_time += wait_loop_time
-        pyautogui.confirm(title=title, text=text, timeout=5 * 5000)
+            time.sleep(2)
+            wait_time += 2
+            if wait_time > 60 * 60 * 5:
+                return
         # 番茄钟开始
         time.sleep(work_time)
         self.add_send_time(work_time)
@@ -215,7 +218,7 @@ class PomodoroClock:
             if get_idle_duration() > ide_need_time:
                 break
             self.add_send_time(relax_need_time)
-            # 没超时三次提醒一次
+            # 每超时三次提醒一次
             if count % 3 == 0:
                 if is_cal:
                     if question_window(title, start_relax_time):
@@ -240,7 +243,10 @@ class PomodoroClock:
         config[self.use_time] = self._use_time
         python_box.write_config(config, PomodoroClock.ini)
         if self.ha:
-            self.ha.send_state(f"{'%.2f' % (self._use_time)} 分钟")
+            try:
+                self.ha.send_state(f"{'%.2f' % (self._use_time)} 分钟")
+            except Exception as e:
+                print(e)
 
 
 if __name__ == '__main__':
