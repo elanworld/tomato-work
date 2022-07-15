@@ -11,8 +11,10 @@ import win32con
 import win32gui
 import ctypes
 
-from common import gui
+from common import gui, python_box
 from common import python_box as box
+from common.mqtt_utils import MqttBase
+from tools.server_box.homeassistant_mq_entity import HomeAssistantEntity
 
 
 class Sheep:
@@ -45,14 +47,18 @@ class Sheep:
                 return join
 
     def add(self):
-        sheep_exe = self.find_sheep_exec()
-        if sheep_exe is None:
-            return
-        process = subprocess.Popen([sheep_exe, ],
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT,
-                                   stdin=subprocess.DEVNULL)
-        self.sheep_list.append(process)
+        try:
+            sheep_exe = self.find_sheep_exec()
+            if sheep_exe is None:
+                return
+            process = subprocess.Popen([sheep_exe, ],
+                                       stdout=subprocess.PIPE,
+                                       stderr=subprocess.STDOUT,
+                                       stdin=subprocess.DEVNULL)
+            self.sheep_list.append(process)
+        except Exception as e:
+            print("打开esheep失败")
+            raise Exception(f"打开eshep失败,{e.__str__()}")
         return process
 
     def remove(self):
@@ -148,47 +154,121 @@ def get_start_time():
     return t
 
 
-def run():
-    if "test" in sys.argv:
-        is_cal = False  # 是否计算跳过
-        work_time = 2  # 工作时间
-        relax_need_time = 5  # 要求休息时间
-        ide_need_time = 4  # 检测空闲时间
-    else:
-        is_cal = False
-        work_time = 25 * 60
-        relax_need_time = 5 * 60
-        ide_need_time = 4 * 60
-    title = "番茄钟"
-    text = "番茄钟开始"
-    balloon_tip = WindowsBalloonTip(title, text)
-    pyautogui.confirm(title=title, text=text)
-    time.sleep(work_time)
-    pyautogui.confirm(title=title, text="开始休息", timeout=5 * 1000)
-    start_relax_time = time.time()  # 开始休息时间点
-    sheep = Sheep()
-    sheep.add()
-    count = 0
-    while True:
-        count += 1
-        time.sleep(relax_need_time)
-        if get_idle_duration() > ide_need_time:
-            break
-        # 没超时三次提醒一次
-        if count % 3 == 0:
-            if is_cal:
-                if question_window(title, start_relax_time):
-                    break
-            sheep.add()
-    sheep.remove_all()
-    balloon_tip.destroy()
+class PomodoroClock:
+    host = "mq host"
+    port = "mq port"
+    message = "send message"
+    ini = "config/config_tomato.ini"
+    today = "today"
+    use_time = "use time"
+
+    def __init__(self, config: dict, **kwargs):
+        self._today = config.get(self.today)
+        self._use_time = float(config.get(self.use_time))
+        self.ha = None
+        if config.get(self.message):
+            try:
+                base = MqttBase(config.get(self.host), int(config.get(self.port)))
+                self.ha = HomeAssistantEntity(base)
+                self.ha.config_topic("day_use", "当日使用时长")
+            except Exception as e:
+                print(e)
+
+    def __del__(self):
+        if self.ha:
+            self.ha.mq.close()
+
+    def run(self):
+        if "test" in sys.argv:
+            is_cal = False  # 是否计算跳过
+            work_time = 2  # 工作时间
+            relax_need_time = 5  # 要求休息时间
+            ide_need_time = 4  # 检测空闲时间
+        else:
+            is_cal = False
+            work_time = 25 * 60
+            relax_need_time = 5 * 60
+            ide_need_time = 4 * 60
+        title = "番茄钟"
+        text = "番茄钟开始"
+        balloon_tip = None
+        try:
+            balloon_tip = WindowsBalloonTip(title, text)
+        except Exception as e:
+            print(e)
+        if get_idle_duration() > 5:
+            pyautogui.confirm(title=title, text=text, timeout=3 * 5000)
+        # 空闲等待五小时
+        wait_time = 0
+        while True:
+            if get_idle_duration() < 2:
+                pyautogui.confirm(title=title, text=text)
+                break
+            time.sleep(2)
+            wait_time += 2
+            if wait_time > 60 * 60 * 5:
+                return
+        # 番茄钟开始
+        time.sleep(work_time)
+        self.add_send_time(work_time)
+        pyautogui.confirm(title=title, text="开始休息", timeout=5 * 1000)
+        start_relax_time = time.time()  # 开始休息时间点
+        sheep = Sheep()
+        sheep.add()
+        count = 0
+        while True:
+            count += 1
+            time.sleep(relax_need_time)
+            if get_idle_duration() > ide_need_time:
+                break
+            self.add_send_time(relax_need_time)
+            # 每超时三次提醒一次
+            if count % 3 == 0:
+                if is_cal:
+                    if question_window(title, start_relax_time):
+                        break
+                sheep.add()
+        sheep.remove_all()
+        if balloon_tip:
+            balloon_tip.destroy()
+
+    def add_send_time(self, duration: float):
+        """
+        写入时间信息并发送ha服务器
+        :param duration: 增加时间，秒
+        :return:
+        """
+        # 新的一天重计时
+        if self._today != python_box.date_format(day=True):
+            self._today = python_box.date_format(day=True)
+            self._use_time = 0
+            config[self.today] = self._today
+        self._use_time += duration / 60
+        config[self.use_time] = self._use_time
+        python_box.write_config(config, PomodoroClock.ini)
+        if self.ha:
+            try:
+                self.ha.send_state(f"{'%.2f' % (self._use_time)} 分钟")
+            except Exception as e:
+                print(e)
 
 
 if __name__ == '__main__':
+    config = python_box.read_config(PomodoroClock.ini,
+                                    {("%s" % PomodoroClock.host): "localhost",
+                                     ("%s" % PomodoroClock.port): "1883",
+                                     ("%s" % PomodoroClock.message): "0#是否发送消息1 0", PomodoroClock.today: 0,
+                                     PomodoroClock.use_time: 0, }, )
+    if not config:
+        print("请配置并重新运行")
+        sys.exit(0)
+    clock = PomodoroClock(config)
     if get_start_time() < 200:
         time.sleep(300)
     if "task" in sys.argv:
-        run()
+        clock.run()
     else:
         for _ in range(24):
-            run()
+            clock.run()
+    if clock.ha:
+        clock.ha.mq.close()
