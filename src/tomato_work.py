@@ -161,22 +161,27 @@ class PomodoroClock:
     ini = "config/config_tomato.ini"
     today = "today"
     use_time = "use time"
+    over_time = "over time"
 
     def __init__(self, config: dict, **kwargs):
         self._today = config.get(self.today)
         self._use_time = float(config.get(self.use_time))
-        self.ha = None
+        self._over_time = float(config.get(self.over_time))
+        self.use_entity = None
+        self.over_entity = None
         if config.get(self.message):
             try:
                 base = MqttBase(config.get(self.host), int(config.get(self.port)))
-                self.ha = HomeAssistantEntity(base)
-                self.ha.config_topic("day_use", "当日使用时长")
+                self.use_entity = HomeAssistantEntity(base)
+                self.use_entity.config_topic("day_use", "当日使用时长", unit="分钟")
+                self.over_entity = HomeAssistantEntity(base)
+                self.over_entity.config_topic("over_time", "超时时间", unit="分钟")
             except Exception as e:
                 print(e)
 
     def __del__(self):
-        if self.ha:
-            self.ha.mq.close()
+        if self.use_entity:
+            self.use_entity.mq.close()
 
     def run(self):
         if "test" in sys.argv:
@@ -221,13 +226,14 @@ class PomodoroClock:
             time.sleep(relax_need_time)
             if get_idle_duration() > ide_need_time:
                 break
-            self.add_send_time(relax_need_time)
+            self.add_send_time(relax_need_time / 60)
             # 每超时三次提醒一次
             if count % 3 == 0:
                 if is_cal:
                     if question_window(title, start_relax_time):
                         break
                 sheep.add()
+                self.add_send_overtime(relax_need_time * 3 / 60)
         sheep.remove_all()
         if balloon_tip:
             balloon_tip.destroy()
@@ -238,17 +244,35 @@ class PomodoroClock:
         :param duration: 增加时间，秒
         :return:
         """
+        self._use_time += duration
+        config[self.use_time] = self._use_time
+        self.save_state()
+
+    def add_send_overtime(self, duration: float):
+        self.new_day_build()
+        self._over_time = self._over_time + duration
+        config[self.over_time] = self._over_time
+        self.save_state()
+
+    def new_day_build(self):
         # 新的一天重计时
         if self._today != python_box.date_format(day=True):
             self._today = python_box.date_format(day=True)
             self._use_time = 0
+            self._over_time = 0
             config[self.today] = self._today
-        self._use_time += duration / 60
-        config[self.use_time] = self._use_time
+            config[self.over_time] = self._over_time
+
+    def save_state(self):
         python_box.write_config(config, PomodoroClock.ini)
-        if self.ha:
+        if self.use_entity:
             try:
-                self.ha.send_state(f"{'%.2f' % (self._use_time)} 分钟")
+                self.use_entity.send_state(f"{'%.2f' % (self._use_time)}")
+            except Exception as e:
+                print(e)
+        if self.over_entity:
+            try:
+                self.over_entity.send_state(f"{'%.2f' % (self._over_time)}")
             except Exception as e:
                 print(e)
 
@@ -258,7 +282,7 @@ if __name__ == '__main__':
                                     {("%s" % PomodoroClock.host): "localhost",
                                      ("%s" % PomodoroClock.port): "1883",
                                      ("%s" % PomodoroClock.message): "0#是否发送消息1 0", PomodoroClock.today: 0,
-                                     PomodoroClock.use_time: 0, }, )
+                                     PomodoroClock.use_time: 0, PomodoroClock.over_time: 0, }, )
     if not config:
         print("请配置并重新运行")
         sys.exit(0)
@@ -270,5 +294,5 @@ if __name__ == '__main__':
     else:
         for _ in range(24):
             clock.run()
-    if clock.ha:
-        clock.ha.mq.close()
+    if clock.use_entity:
+        clock.use_entity.mq.close()
