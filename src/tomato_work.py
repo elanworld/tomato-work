@@ -11,6 +11,8 @@ import win32con
 import win32gui
 import ctypes
 
+from infi.systray import SysTrayIcon
+
 from common import gui, python_box
 from common import python_box as box
 from common.mqtt_utils import MqttBase
@@ -169,6 +171,7 @@ class PomodoroClock:
         self._over_time = float(config.get(self.over_time))
         self.use_entity = None
         self.over_entity = None
+        self.sheep = Sheep()
         if config.get(self.message):
             try:
                 base = MqttBase(config.get(self.host), int(config.get(self.port)))
@@ -182,6 +185,8 @@ class PomodoroClock:
     def __del__(self):
         if self.use_entity:
             self.use_entity.mq.close()
+        self.sheep.remove_all()
+        os.kill(os.getpid(), 9)
 
     def run(self):
         if "test" in sys.argv:
@@ -218,8 +223,7 @@ class PomodoroClock:
         self.add_send_time(work_time)
         pyautogui.confirm(title=title, text="开始休息", timeout=5 * 1000)
         start_relax_time = time.time()  # 开始休息时间点
-        sheep = Sheep()
-        sheep.add()
+        self.sheep.add()
         count = 0
         while True:
             count += 1
@@ -232,9 +236,9 @@ class PomodoroClock:
                 if is_cal:
                     if question_window(title, start_relax_time):
                         break
-                sheep.add()
+                self.sheep.add()
                 self.add_send_overtime(relax_need_time * 3 / 60)
-        sheep.remove_all()
+        self.sheep.remove_all()
         if balloon_tip:
             balloon_tip.destroy()
 
@@ -287,6 +291,16 @@ if __name__ == '__main__':
         print("请配置并重新运行")
         sys.exit(0)
     clock = PomodoroClock(config)
+
+
+    def exit_process(clock):
+        clock.__del__()
+        exit(0)
+
+
+    systray = SysTrayIcon(None, "tomato sheep clock",
+                          on_quit=lambda x: exit_process(clock))
+    systray.start()
     if get_start_time() < 200:
         time.sleep(300)
     if "task" in sys.argv:
@@ -296,3 +310,4 @@ if __name__ == '__main__':
             clock.run()
     if clock.use_entity:
         clock.use_entity.mq.close()
+    systray.shutdown()
