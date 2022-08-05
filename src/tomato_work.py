@@ -230,7 +230,7 @@ class PomodoroClock:
             time.sleep(relax_need_time)
             if get_idle_duration() > ide_need_time:
                 break
-            self.add_send_time(relax_need_time / 60)
+            self.add_send_time(relax_need_time)
             # 每超时三次提醒一次
             if count % 3 == 0:
                 if is_cal:
@@ -276,7 +276,7 @@ class PomodoroClock:
                 print(e)
         if self.over_entity:
             try:
-                self.over_entity.send_state(f"{'%.2f' % (self._over_time)}")
+                self.over_entity.send_state(f"{'%.2f' % (self._over_time / 60)}")
             except Exception as e:
                 print(e)
 
