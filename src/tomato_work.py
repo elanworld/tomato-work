@@ -220,29 +220,37 @@ class PomodoroClock:
                 return
         # 番茄钟开始
         time.sleep(work_time)
-        self.add_send_time(work_time)
+        self.add_use_time(work_time)
         pyautogui.confirm(title=title, text="开始休息", timeout=5 * 1000)
         start_relax_time = time.time()  # 开始休息时间点
         self.sheep.add()
         count = 0
         while True:
             count += 1
-            time.sleep(relax_need_time)
-            if get_idle_duration() > ide_need_time:
+            ide = self.sleep_ide(relax_need_time, ide_need_time)
+            if ide < relax_need_time:
                 break
-            self.add_send_time(relax_need_time)
+            self.add_use_time(ide)
             # 每超时三次提醒一次
             if count % 3 == 0:
                 if is_cal:
                     if question_window(title, start_relax_time):
                         break
                 self.sheep.add()
-                self.add_send_overtime(relax_need_time * 3 / 60)
+                self.add_overtime(ide * 3)
         self.sheep.remove_all()
         if balloon_tip:
             balloon_tip.destroy()
 
-    def add_send_time(self, duration: float):
+    def sleep_ide(self, sec: int, need_ide: int = None):
+        start = time.time()
+        for i in range(int(sec / 1)):
+            if need_ide and need_ide <= get_idle_duration():
+                return int(time.time() - start)
+            time.sleep(1)
+        return int(time.time() -start)
+
+    def add_use_time(self, duration: float):
         """
         写入时间信息并发送ha服务器
         :param duration: 增加时间，秒
@@ -252,7 +260,7 @@ class PomodoroClock:
         config[self.use_time] = self._use_time
         self.save_state()
 
-    def add_send_overtime(self, duration: float):
+    def add_overtime(self, duration: float):
         self.new_day_build()
         self._over_time = self._over_time + duration
         config[self.over_time] = self._over_time
@@ -271,12 +279,12 @@ class PomodoroClock:
         python_box.write_config(config, PomodoroClock.ini)
         if self.use_entity:
             try:
-                self.use_entity.send_state(f"{'%.2f' % (self._use_time / 60 )}")
+                self.use_entity.send_state(f"{'%.2f' % (self._use_time / 60)}")
             except Exception as e:
                 print(e)
         if self.over_entity:
             try:
-                self.over_entity.send_state(f"{'%.2f' % (self._over_time)}")
+                self.over_entity.send_state(f"{'%.2f' % (self._over_time / 60)}")
             except Exception as e:
                 print(e)
 
