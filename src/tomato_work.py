@@ -167,11 +167,11 @@ class PomodoroClock:
 
     def __init__(self, config: dict, **kwargs):
         self._today = config.get(self.today)
-        self._use_time = float(config.get(self.use_time))
-        self._over_time = float(config.get(self.over_time))
         self.use_entity = None
         self.over_entity = None
         self.sheep = Sheep()
+        self._use_time = float(config.get(self.use_time))
+        self._over_time = float(config.get(self.over_time))
         if config.get(self.message):
             try:
                 base = MqttBase(config.get(self.host), int(config.get(self.port)))
@@ -271,12 +271,12 @@ class PomodoroClock:
         python_box.write_config(config, PomodoroClock.ini)
         if self.use_entity:
             try:
-                self.use_entity.send_state(f"{'%.2f' % (self._use_time)}")
+                self.use_entity.send_state(f"{'%.2f' % (self._use_time / 60 )}")
             except Exception as e:
                 print(e)
         if self.over_entity:
             try:
-                self.over_entity.send_state(f"{'%.2f' % (self._over_time / 60)}")
+                self.over_entity.send_state(f"{'%.2f' % (self._over_time)}")
             except Exception as e:
                 print(e)
 
