@@ -256,6 +256,7 @@ class PomodoroClock:
         :param duration: 增加时间，秒
         :return:
         """
+        self.new_day_build()
         self._use_time += duration
         config[self.use_time] = self._use_time
         self.save_state()
