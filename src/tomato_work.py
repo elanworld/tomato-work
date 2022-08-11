@@ -167,6 +167,7 @@ class PomodoroClock:
 
     def __init__(self, config: dict, **kwargs):
         self._today = config.get(self.today)
+        self._exit_tag = None
         self.use_entity = None
         self.over_entity = None
         self.sheep = Sheep()
@@ -174,11 +175,12 @@ class PomodoroClock:
         self._over_time = float(config.get(self.over_time))
         if config.get(self.message):
             try:
-                base = MqttBase(config.get(self.host), int(config.get(self.port)))
-                self.use_entity = HomeAssistantEntity(base)
-                self.use_entity.send_sensor_config_topic("day_use", "当日使用时长", unit="分钟")
-                self.over_entity = HomeAssistantEntity(base)
-                self.over_entity.send_sensor_config_topic("over_time", "超时时间", unit="分钟")
+                pass
+                # base = MqttBase(config.get(self.host), int(config.get(self.port)))
+                # self.use_entity = HomeAssistantEntity(base)
+                # self.use_entity.send_sensor_config_topic("day_use", "当日使用时长", unit="分钟")
+                # self.over_entity = HomeAssistantEntity(base)
+                # self.over_entity.send_sensor_config_topic("over_time", "超时时间", unit="分钟")
             except Exception as e:
                 print(e)
 
@@ -186,7 +188,7 @@ class PomodoroClock:
         if self.use_entity:
             self.use_entity.mq.close()
         self.sheep.remove_all()
-        os.kill(os.getpid(), 9)
+        self._exit_tag = True
 
     def run(self):
         if "test" in sys.argv:
@@ -219,7 +221,8 @@ class PomodoroClock:
             if wait_time > 60 * 60 * 5:
                 return
         # 番茄钟开始
-        time.sleep(work_time)
+        if self.sleep_ide(work_time) is True:
+            return
         self.add_use_time(work_time)
         pyautogui.confirm(title=title, text="开始休息", timeout=5 * 1000)
         start_relax_time = time.time()  # 开始休息时间点
@@ -228,6 +231,8 @@ class PomodoroClock:
         while True:
             count += 1
             ide = self.sleep_ide(relax_need_time, ide_need_time)
+            if ide is True:
+                return
             if ide < relax_need_time:
                 break
             self.add_use_time(ide)
@@ -247,8 +252,10 @@ class PomodoroClock:
         for i in range(int(sec / 1)):
             if need_ide and need_ide <= get_idle_duration():
                 return int(time.time() - start)
+            if self._exit_tag:
+                return True
             time.sleep(1)
-        return int(time.time() -start)
+        return int(time.time() - start)
 
     def add_use_time(self, duration: float):
         """
@@ -304,7 +311,6 @@ if __name__ == '__main__':
 
     def exit_process(clock):
         clock.__del__()
-        exit(0)
 
 
     systray = SysTrayIcon(None, "tomato sheep clock",
@@ -317,6 +323,5 @@ if __name__ == '__main__':
     else:
         for _ in range(24):
             clock.run()
-    if clock.use_entity:
-        clock.use_entity.mq.close()
+    clock.__del__()
     systray.shutdown()
