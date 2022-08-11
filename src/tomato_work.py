@@ -15,7 +15,7 @@ from infi.systray import SysTrayIcon
 
 from common import gui, python_box
 from common import python_box as box
-from common.mqtt_utils import MqttBase
+from tools.server_box.mqtt_utils import MqttBase
 from tools.server_box.homeassistant_mq_entity import HomeAssistantEntity
 
 
