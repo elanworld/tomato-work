@@ -67,7 +67,7 @@ class Sheep:
         if len(self.sheep_list) > 0:
             last = self.sheep_list[len(self.sheep_list) - 1]
             self.sheep_list.remove(last)
-            last.kill()
+            last.terminate()
         else:
             print("all sheep killed")
 
@@ -166,6 +166,7 @@ class PomodoroClock:
     over_time = "over time"
 
     def __init__(self, config: dict, **kwargs):
+        self.balloon_tip = None  # type: WindowsBalloonTip
         self._today = config.get(self.today)
         self._exit_tag = None
         self.use_entity = None
@@ -188,6 +189,8 @@ class PomodoroClock:
         if self.use_entity:
             self.use_entity.mq.close()
         self.sheep.remove_all()
+        if self.balloon_tip:
+            self.balloon_tip.destroy()
         self._exit_tag = True
 
     def run(self):
@@ -203,9 +206,8 @@ class PomodoroClock:
             ide_need_time = 4 * 60
         title = "番茄钟"
         text = "番茄钟开始"
-        balloon_tip = None
         try:
-            balloon_tip = WindowsBalloonTip(title, text)
+            self.balloon_tip = WindowsBalloonTip(title, text)
         except Exception as e:
             print(e)
         if get_idle_duration() > 5:
@@ -244,8 +246,9 @@ class PomodoroClock:
                 self.sheep.add()
                 self.add_overtime(ide * 3)
         self.sheep.remove_all()
-        if balloon_tip:
-            balloon_tip.destroy()
+        if self.balloon_tip:
+            self.balloon_tip.destroy()
+            self.balloon_tip = None
 
     def sleep_ide(self, sec: int, need_ide: int = None):
         start = time.time()
