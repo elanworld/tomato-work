@@ -7,6 +7,7 @@ import webbrowser
 from ctypes import Structure, windll, c_uint, sizeof, byref
 
 import pyautogui
+import requests
 import win32con
 import win32gui
 import ctypes
@@ -17,6 +18,7 @@ from common import gui, python_box
 from common import python_box as box
 from tools.server_box.mqtt_utils import MqttBase
 from tools.server_box.homeassistant_mq_entity import HomeAssistantEntity
+from tools.tomato_work.src.desktop_pet import RelaxPet
 
 
 class Sheep:
@@ -196,9 +198,9 @@ class PomodoroClock:
     def run(self):
         if "test" in sys.argv:
             is_cal = False  # 是否计算跳过
-            work_time = 2  # 工作时间
-            relax_need_time = 5  # 要求休息时间
-            ide_need_time = 4  # 检测空闲时间
+            work_time = 2.0  # 工作时间
+            relax_need_time = 5.0  # 要求休息时间
+            ide_need_time = 4.0  # 检测空闲时间
         else:
             is_cal = False
             work_time = 25 * 60
@@ -230,11 +232,19 @@ class PomodoroClock:
         start_relax_time = time.time()  # 开始休息时间点
         self.sheep.add()
         count = 0
+        pet = RelaxPet()
         while True:
             count += 1
-            ide = self.sleep_ide(relax_need_time, ide_need_time)
-            if ide is True:
-                return
+            ide = 0
+            for _ in range(5):
+                ide += self.sleep_ide(relax_need_time / 5, ide_need_time)
+                pet.run()
+                pet.state(1)
+                pet.move(10, 1000, 1800, 10, 1)
+                pet.state(0)
+                pet.close()
+                if ide is True:
+                    return
             if ide < relax_need_time:
                 break
             self.add_use_time(ide)
@@ -252,7 +262,7 @@ class PomodoroClock:
 
     def sleep_ide(self, sec: int, need_ide: int = None):
         start = time.time()
-        for i in range(int(sec / 1)):
+        for i in range(int(sec)):
             if need_ide and need_ide <= get_idle_duration():
                 return int(time.time() - start)
             if self._exit_tag:
