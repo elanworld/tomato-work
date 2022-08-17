@@ -243,9 +243,10 @@ class PomodoroClock:
                 res = self.sleep_ide(relax_need_time / 5, ide_need_time)
                 ide = True if res is True else ide + res
                 try:
-                    self.pet.state(1)
-                    self.pet.move(10, 1000, 1800, 10, 1)
-                    self.pet.state(0)
+                    if res >= relax_need_time / 5:
+                        self.pet.state(1)
+                        self.pet.move(10, 1000, 1800, 10, 1)
+                        self.pet.state(0)
                 except Exception as e:
                     self.log_msg(e)
                 if ide is True:
