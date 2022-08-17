@@ -195,6 +195,7 @@ class PomodoroClock:
         if self.balloon_tip:
             self.balloon_tip.destroy()
         self._exit_tag = True
+        self.pet.__del__()
 
     def run(self):
         if "test" in sys.argv:
