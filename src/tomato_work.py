@@ -168,6 +168,7 @@ class PomodoroClock:
     over_time = "over time"
 
     def __init__(self, config: dict, **kwargs):
+        self.pet = RelaxPet()
         self.balloon_tip = None  # type: WindowsBalloonTip
         self._today = config.get(self.today)
         self._exit_tag = None
@@ -185,7 +186,7 @@ class PomodoroClock:
                 # self.over_entity = HomeAssistantEntity(base)
                 # self.over_entity.send_sensor_config_topic("over_time", "超时时间", unit="分钟")
             except Exception as e:
-                print(e)
+                self.log_msg(e)
 
     def __del__(self):
         if self.use_entity:
@@ -210,8 +211,10 @@ class PomodoroClock:
         text = "番茄钟开始"
         try:
             self.balloon_tip = WindowsBalloonTip(title, text)
+            self.pet.run()
+            self.pet.state(0)
         except Exception as e:
-            print(e)
+            self.log_msg(e)
         if get_idle_duration() > 5:
             pyautogui.confirm(title=title, text=text, timeout=3 * 5000)
         # 空闲等待五小时
@@ -232,17 +235,18 @@ class PomodoroClock:
         start_relax_time = time.time()  # 开始休息时间点
         self.sheep.add()
         count = 0
-        pet = RelaxPet()
         while True:
             count += 1
             ide = 0
             for _ in range(5):
-                ide += self.sleep_ide(relax_need_time / 5, ide_need_time)
-                pet.run()
-                pet.state(1)
-                pet.move(10, 1000, 1800, 10, 1)
-                pet.state(0)
-                pet.close()
+                res = self.sleep_ide(relax_need_time / 5, ide_need_time)
+                ide = True if res is True else ide + res
+                try:
+                    self.pet.state(1)
+                    self.pet.move(10, 1000, 1800, 10, 1)
+                    self.pet.state(0)
+                except Exception as e:
+                    self.log_msg(e)
                 if ide is True:
                     return
             if ide < relax_need_time:
@@ -302,12 +306,15 @@ class PomodoroClock:
             try:
                 self.use_entity.send_state(f"{'%.2f' % (self._use_time / 60)}")
             except Exception as e:
-                print(e)
+                self.log_msg(e)
         if self.over_entity:
             try:
                 self.over_entity.send_state(f"{'%.2f' % (self._over_time / 60)}")
             except Exception as e:
-                print(e)
+                self.log_msg(e)
+
+    def log_msg(self, msg):
+        python_box.log(msg, file="config/log_tomato.log")
 
 
 if __name__ == '__main__':

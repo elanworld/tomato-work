@@ -24,12 +24,14 @@ class RelaxPet:
             response = requests.post(self.app_api + "swap", json=body)
         else:
             response = requests.post(self.app_api + "move", json=body)
-        print(response.text)
+        if not response.text.startswith("{"):
+            print(response.text)
 
     def state(self, transparency: float = 1):
         body = {"transparency": transparency}
         response = requests.post(self.app_api + "state", json=body)
-        print(response.text)
+        if not response.text.startswith("{"):
+            print(response.text)
 
     def close(self):
         self.process.kill()
