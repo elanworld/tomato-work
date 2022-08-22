@@ -202,12 +202,10 @@ class PomodoroClock:
             is_cal = False  # 是否计算跳过
             work_time = 2.0  # 工作时间
             relax_need_time = 5.0  # 要求休息时间
-            ide_need_time = 4.0  # 检测空闲时间
         else:
             is_cal = False
             work_time = 25 * 60
             relax_need_time = 5 * 60
-            ide_need_time = 4 * 60
         title = "番茄钟"
         text = "番茄钟开始"
         try:
@@ -217,7 +215,7 @@ class PomodoroClock:
         except Exception as e:
             self.log_msg(e)
         if get_idle_duration() > 5:
-            pyautogui.confirm(title=title, text=text, timeout=3 * 5000)
+            pyautogui.confirm(title=title, text=text, timeout=1000)
         # 空闲等待五小时
         wait_time = 0
         while True:
@@ -240,7 +238,7 @@ class PomodoroClock:
             count += 1
             ide = 0
             for _ in range(5):
-                res = self.sleep_ide(relax_need_time / 5, ide_need_time)
+                res = self.sleep_ide(relax_need_time / 5, relax_need_time)
                 ide = True if res is True else ide + res
                 try:
                     if res >= relax_need_time / 5:
