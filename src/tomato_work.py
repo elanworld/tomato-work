@@ -109,7 +109,7 @@ class PomodoroClock:
         except Exception as e:
             self.log_msg(e)
         if get_idle_duration() > 5:
-            pyautogui.confirm(title=title, text=text, timeout=1000)
+            pyautogui.confirm(title=title, text=text, timeout=1 * 1000)
         # 空闲等待五小时
         wait_time = 0
         while True:
@@ -120,11 +120,12 @@ class PomodoroClock:
             wait_time += 2
             if wait_time > 60 * 60 * 5:
                 return
-        # 番茄钟开始
+        self.log_msg("番茄钟计时开始")
         if self.sleep_ide(work_time) is True:
             return
+        self.log_msg("番茄钟计时结束，开始休息")
         self.add_use_time(work_time)
-        pyautogui.confirm(title=title, text="开始休息", timeout=5 * 1000)
+        pyautogui.confirm(title=title, text="开始休息", timeout=3 * 1000)
         start_relax_time = time.time()  # 开始休息时间点
         self.sheep.add()
         count = 0
@@ -157,6 +158,7 @@ class PomodoroClock:
         if self.balloon_tip:
             self.balloon_tip.destroy()
             self.balloon_tip = None
+        self.log_msg("番茄钟休息完毕")
 
     def sleep_ide(self, sec: int, need_ide: int = None):
         start = time.time()
