@@ -1,9 +1,5 @@
-import ctypes
-import random
 import sys
 import time
-from ctypes import Structure, c_uint
-from ctypes import windll, sizeof, byref
 
 import pyautogui
 from infi.systray import SysTrayIcon
@@ -13,43 +9,31 @@ from desktop_esheep import Sheep
 from desktop_pet import RelaxPet
 from tools.server_box.homeassistant_mq_entity import HomeAssistantEntity
 from tools.server_box.mqtt_utils import MqttBase
-from ball_tip import WindowsBalloonTip
+from win_util import WindowsBalloonTip, get_idle_duration, question_window, get_start_time
 
 
-def get_idle_duration():
-    class LASTINPUTINFO(Structure):
-        _fields_ = [
-            ('cbSize', c_uint),
-            ('dwTime', c_uint),
-        ]
+class Timer:
+    def __init__(self):
+        self.exit_tag = None
+        self.start = time.time()
 
-    lastInputInfo = LASTINPUTINFO()
-    lastInputInfo.cbSize = sizeof(lastInputInfo)
-    windll.user32.GetLastInputInfo(byref(lastInputInfo))
-    millis = windll.kernel32.GetTickCount() - lastInputInfo.dwTime
-    return int(millis / 1000.0)
+    def init(self):
+        self.start = time.time()
 
+    def get_duration(self):
+        return time.time() - self.start
 
-
-def question_window(title, start_relax_time):
-    randint = random.randint(20, 100)
-    randint1 = random.randint(20, 100)
-    question = f"开始休息时间已过{int((time.time() - start_relax_time) / 60)}分钟!"
-    input_str = pyautogui.prompt(title=title, text=question, timeout=1000 * 15,
-                                 default=f"放松几分钟！不休息请回答算术题!{randint}+{randint1}")
-    if input_str == str(randint + randint1):
-        return True
-
-
-def get_start_time():
-    # getting the library in which GetTickCount64() resides
-    lib = ctypes.windll.kernel32
-    # calling the function and storing the return value
-    t = lib.GetTickCount64()
-    # since the time is in milliseconds i.e. 1000 * seconds
-    # therefore truncating the value
-    t = int(str(t)[:-3])
-    return t
+    def sleep_ide(self, sec: float, need_ide: float = None, init=False):
+        start = time.time()
+        if init:
+            self.start = start
+        for i in range(int(sec)):
+            if need_ide and need_ide <= get_idle_duration():
+                return int(time.time() - start)
+            if self.exit_tag is True:
+                return True
+            time.sleep(1)
+        return int(time.time() - start)
 
 
 class PomodoroClock:
@@ -63,12 +47,13 @@ class PomodoroClock:
 
     def __init__(self, config: dict, **kwargs):
         self.pet = RelaxPet()
-        self.balloon_tip = None  # type: WindowsBalloonTip
         self._today = config.get(self.today)
         self._exit_tag = None
         self.use_entity = None
         self.over_entity = None
+        self.state = ""
         self.sheep = Sheep()
+        self.timer = Timer()
         self._use_time = float(config.get(self.use_time))
         self._over_time = float(config.get(self.over_time))
         if config.get(self.message):
@@ -86,10 +71,11 @@ class PomodoroClock:
         if self.use_entity:
             self.use_entity.mq.close()
         self.sheep.remove_all()
-        if self.balloon_tip:
-            self.balloon_tip.destroy()
-        self._exit_tag = True
+        self.timer.exit_tag = True
         self.pet.__del__()
+
+    def show_state(self, *args):
+        pyautogui.confirm(title=self.state, text=f"{int(self.timer.get_duration() / 60 )}分钟")
 
     def run(self):
         if "test" in sys.argv:
@@ -103,7 +89,6 @@ class PomodoroClock:
         title = "番茄钟"
         text = "番茄钟开始"
         try:
-            self.balloon_tip = WindowsBalloonTip(title, text)
             self.pet.run()
             self.pet.state(0)
         except Exception as e:
@@ -121,9 +106,13 @@ class PomodoroClock:
             if wait_time > 60 * 60 * 5:
                 return
         self.log_msg("番茄钟计时开始")
-        if self.sleep_ide(work_time) is True:
+        self.state = "计时开始"
+        self.timer.init()
+        if self.timer.sleep_ide(work_time) is True:
             return
         self.log_msg("番茄钟计时结束，开始休息")
+        self.state = "休息开始"
+        self.timer.init()
         self.add_use_time(work_time)
         pyautogui.confirm(title=title, text="开始休息", timeout=3 * 1000)
         start_relax_time = time.time()  # 开始休息时间点
@@ -133,7 +122,7 @@ class PomodoroClock:
             count += 1
             ide = 0
             for _ in range(5):
-                res = self.sleep_ide(relax_need_time / 5, relax_need_time)
+                res = self.timer.sleep_ide(relax_need_time / 5, relax_need_time)
                 ide = True if res is True else ide + res
                 try:
                     if res >= relax_need_time / 5:
@@ -155,20 +144,7 @@ class PomodoroClock:
                 self.sheep.add()
                 self.add_overtime(ide * 3)
         self.sheep.remove_all()
-        if self.balloon_tip:
-            self.balloon_tip.destroy()
-            self.balloon_tip = None
         self.log_msg("番茄钟休息完毕")
-
-    def sleep_ide(self, sec: int, need_ide: int = None):
-        start = time.time()
-        for i in range(int(sec)):
-            if need_ide and need_ide <= get_idle_duration():
-                return int(time.time() - start)
-            if self._exit_tag:
-                return True
-            time.sleep(1)
-        return int(time.time() - start)
 
     def add_use_time(self, duration: float):
         """
@@ -229,7 +205,8 @@ if __name__ == '__main__':
         clock.__del__()
 
 
-    systray = SysTrayIcon(None, "tomato sheep clock",
+    menu = (("显示状态", None, clock.show_state),)
+    systray = SysTrayIcon(None, "tomato sheep clock", menu,
                           on_quit=lambda x: exit_process(clock))
     systray.start()
     if get_start_time() < 200:

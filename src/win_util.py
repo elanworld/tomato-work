@@ -1,7 +1,46 @@
+import ctypes
+import random
+import time
 from ctypes import Structure, c_uint
+from ctypes import windll, sizeof, byref
 
 import win32con
 import win32gui
+
+
+def get_idle_duration():
+    class LASTINPUTINFO(Structure):
+        _fields_ = [
+            ('cbSize', c_uint),
+            ('dwTime', c_uint),
+        ]
+
+    lastInputInfo = LASTINPUTINFO()
+    lastInputInfo.cbSize = sizeof(lastInputInfo)
+    windll.user32.GetLastInputInfo(byref(lastInputInfo))
+    millis = windll.kernel32.GetTickCount() - lastInputInfo.dwTime
+    return int(millis / 1000.0)
+
+
+def question_window(title, start_relax_time):
+    randint = random.randint(20, 100)
+    randint1 = random.randint(20, 100)
+    question = f"开始休息时间已过{int((time.time() - start_relax_time) / 60)}分钟!"
+    input_str = pyautogui.prompt(title=title, text=question, timeout=1000 * 15,
+                                 default=f"放松几分钟！不休息请回答算术题!{randint}+{randint1}")
+    if input_str == str(randint + randint1):
+        return True
+
+
+def get_start_time():
+    # getting the library in which GetTickCount64() resides
+    lib = ctypes.windll.kernel32
+    # calling the function and storing the return value
+    t = lib.GetTickCount64()
+    # since the time is in milliseconds i.e. 1000 * seconds
+    # therefore truncating the value
+    t = int(str(t)[:-3])
+    return t
 
 
 class WindowsBalloonTip:
