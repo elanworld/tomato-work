@@ -61,9 +61,9 @@ class PomodoroClock:
                 pass
                 base = MqttBase(config.get(self.host), int(config.get(self.port)))
                 self.use_entity = HomeAssistantEntity(base)
-                self.use_entity.send_sensor_config_topic("day_use", "当日使用时长", unit="分钟", keep=True)
+                self.use_entity.send_sensor_config_topic("day_use", "当日使用时长", unit="分钟", expire_after=None, keep=True)
                 self.over_entity = HomeAssistantEntity(base)
-                self.over_entity.send_sensor_config_topic("over_time", "超时时间", unit="分钟", keep=True)
+                self.over_entity.send_sensor_config_topic("over_time", "超时时间", unit="分钟", expire_after=None, keep=True)
             except Exception as e:
                 self.log_msg(e)
 
