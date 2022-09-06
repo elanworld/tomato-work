@@ -61,9 +61,9 @@ class PomodoroClock:
                 pass
                 base = MqttBase(config.get(self.host), int(config.get(self.port)))
                 self.use_entity = HomeAssistantEntity(base)
-                self.use_entity.send_sensor_config_topic("day_use", "当日使用时长", unit="分钟")
+                self.use_entity.send_sensor_config_topic("day_use", "当日使用时长", unit="分钟", keep=True)
                 self.over_entity = HomeAssistantEntity(base)
-                self.over_entity.send_sensor_config_topic("over_time", "超时时间", unit="分钟")
+                self.over_entity.send_sensor_config_topic("over_time", "超时时间", unit="分钟", keep=True)
             except Exception as e:
                 self.log_msg(e)
 
@@ -75,7 +75,7 @@ class PomodoroClock:
         self.pet.__del__()
 
     def show_state(self, *args):
-        pyautogui.confirm(title=self.state, text=f"{int(self.timer.get_duration() / 60 )}分钟")
+        pyautogui.confirm(title=self.state, text=f"{int(self.timer.get_duration() / 60)}分钟")
 
     def run(self):
         if "test" in sys.argv:
