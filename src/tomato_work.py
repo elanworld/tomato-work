@@ -9,7 +9,7 @@ from desktop_esheep import Sheep
 from desktop_pet import RelaxPet
 from tools.server_box.homeassistant_mq_entity import HomeAssistantEntity
 from tools.server_box.mqtt_utils import MqttBase
-from win_util import WindowsBalloonTip, get_idle_duration, question_window, get_start_time
+from win_util import get_idle_duration, question_window, get_start_time
 
 
 class Timer:
@@ -75,7 +75,15 @@ class PomodoroClock:
         self.pet.__del__()
 
     def show_state(self, *args):
-        pyautogui.confirm(title=self.state, text=f"{int(self.timer.get_duration() / 60 )}分钟")
+        pyautogui.confirm(title=self.state, text=f"{int(self.timer.get_duration() / 60)}分钟")
+
+    def screen_tip(self):
+        try:
+            self.pet.state(1)
+            self.pet.move(10, 1000, 1800, 10, 1)
+            self.pet.state(0)
+        except Exception as e:
+            self.log_msg(e)
 
     def run(self):
         if "test" in sys.argv:
@@ -114,6 +122,7 @@ class PomodoroClock:
         self.state = "休息开始"
         self.timer.init()
         self.add_use_time(work_time)
+        self.add_overtime(0)
         pyautogui.confirm(title=title, text="开始休息", timeout=3 * 1000)
         start_relax_time = time.time()  # 开始休息时间点
         self.sheep.add()
@@ -124,17 +133,13 @@ class PomodoroClock:
             for _ in range(5):
                 res = self.timer.sleep_ide(relax_need_time / 5, relax_need_time)
                 ide = True if res is True else ide + res
-                try:
-                    if res >= relax_need_time / 5:
-                        self.pet.state(1)
-                        self.pet.move(10, 1000, 1800, 10, 1)
-                        self.pet.state(0)
-                except Exception as e:
-                    self.log_msg(e)
                 if ide is True:
                     return
-            if ide < relax_need_time:
-                break
+                if res >= relax_need_time / 5:
+                    self.screen_tip()
+                    self.add_overtime(ide)
+                else:
+                    return
             self.add_use_time(ide)
             # 每超时三次提醒一次
             if count % 3 == 0:
@@ -142,7 +147,6 @@ class PomodoroClock:
                     if question_window(title, start_relax_time):
                         break
                 self.sheep.add()
-                self.add_overtime(ide * 3)
         self.sheep.remove_all()
         self.log_msg("番茄钟休息完毕")
 
