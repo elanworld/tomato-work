@@ -61,9 +61,9 @@ class PomodoroClock:
                 pass
                 base = MqttBase(config.get(self.host), int(config.get(self.port)))
                 self.use_entity = HomeAssistantEntity(base)
-                self.use_entity.send_sensor_config_topic("day_use", "当日使用时长", unit="分钟")
+                self.use_entity.send_sensor_config_topic("day_use", "当日使用时长", unit="分钟", expire_after=None, keep=True)
                 self.over_entity = HomeAssistantEntity(base)
-                self.over_entity.send_sensor_config_topic("over_time", "超时时间", unit="分钟")
+                self.over_entity.send_sensor_config_topic("over_time", "超时时间", unit="分钟", expire_after=None, keep=True)
             except Exception as e:
                 self.log_msg(e)
 
@@ -122,7 +122,6 @@ class PomodoroClock:
         self.state = "休息开始"
         self.timer.init()
         self.add_use_time(work_time)
-        self.add_overtime(0)
         pyautogui.confirm(title=title, text="开始休息", timeout=3 * 1000)
         start_relax_time = time.time()  # 开始休息时间点
         self.sheep.add()
