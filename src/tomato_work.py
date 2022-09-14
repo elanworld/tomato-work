@@ -4,6 +4,7 @@ import time
 import pyautogui
 from infi.systray import SysTrayIcon
 
+import paho.mqtt.client as mqtt
 from common import python_box
 from desktop_esheep import Sheep
 from desktop_pet import RelaxPet
@@ -44,26 +45,34 @@ class PomodoroClock:
     today = "today"
     use_time = "use time"
     over_time = "over time"
+    name = "tomato"
 
     def __init__(self, config: dict, **kwargs):
+        self.config = config
         self.pet = RelaxPet()
-        self._today = config.get(self.today)
+        self._today = self.config.get(self.today)
         self._exit_tag = None
         self.use_entity = None
         self.over_entity = None
+        self.tip_entity = None
         self.state = ""
         self.sheep = Sheep()
         self.timer = Timer()
         self._use_time = float(config.get(self.use_time))
         self._over_time = float(config.get(self.over_time))
-        if config.get(self.message):
+        if self.config.get(self.message):
             try:
-                pass
-                base = MqttBase(config.get(self.host), int(config.get(self.port)))
-                self.use_entity = HomeAssistantEntity(base)
+                def will_set(client: mqtt.Client):
+                    tmp = HomeAssistantEntity(None, self.name)
+                    client.will_set(tmp.status_topic, "offline")
+
+                base = MqttBase(self.config.get(self.host), int(self.config.get(self.port)),None, will_set)
+                self.use_entity = HomeAssistantEntity(base, self.name)
+                self.over_entity = HomeAssistantEntity(base, self.name)
+                self.tip_entity = HomeAssistantEntity(base, self.name)
                 self.use_entity.send_sensor_config_topic("day_use", "当日使用时长", unit="分钟", expire_after=None, keep=True)
-                self.over_entity = HomeAssistantEntity(base)
                 self.over_entity.send_sensor_config_topic("over_time", "超时时间", unit="分钟", expire_after=None, keep=True)
+                self.tip_entity.send_switch_config_topic("tip", "休息提醒", None)
             except Exception as e:
                 self.log_msg(e)
 
@@ -128,18 +137,13 @@ class PomodoroClock:
         count = 0
         while True:
             count += 1
-            ide = 0
+            self.send_tip()
             for _ in range(5):
                 res = self.timer.sleep_ide(relax_need_time / 5, relax_need_time)
-                ide = True if res is True else ide + res
-                if ide is True:
+                if res is True or res < relax_need_time / 5:
                     return
-                if res >= relax_need_time / 5:
-                    self.screen_tip()
-                    self.add_overtime(ide)
-                else:
-                    return
-            self.add_use_time(ide)
+                self.screen_tip()
+                self.add_over_use_time(res)
             # 每超时三次提醒一次
             if count % 3 == 0:
                 if is_cal:
@@ -157,13 +161,15 @@ class PomodoroClock:
         """
         self.new_day_build()
         self._use_time += duration
-        config[self.use_time] = self._use_time
+        self.config[self.use_time] = self._use_time
         self.save_state()
 
-    def add_overtime(self, duration: float):
+    def add_over_use_time(self, duration: float):
         self.new_day_build()
-        self._over_time = self._over_time + duration
-        config[self.over_time] = self._over_time
+        self._over_time += + duration
+        self._use_time += duration
+        self.config[self.over_time] = self._over_time
+        self.config[self.use_time] = self._use_time
         self.save_state()
 
     def new_day_build(self):
@@ -172,21 +178,23 @@ class PomodoroClock:
             self._today = python_box.date_format(day=True)
             self._use_time = 0
             self._over_time = 0
-            config[self.today] = self._today
-            config[self.over_time] = self._over_time
+            self.config[self.today] = self._today
+            self.config[self.over_time] = self._over_time
 
     def save_state(self):
-        python_box.write_config(config, PomodoroClock.ini)
+        python_box.write_config(self.config, PomodoroClock.ini)
         if self.use_entity:
             try:
-                self.use_entity.send_state(f"{'%.2f' % (self._use_time / 60)}")
+                self.use_entity.send_sensor_state(f"{'%.2f' % (self._use_time / 60)}")
+                self.over_entity.send_sensor_state(f"{'%.2f' % (self._over_time / 60)}")
             except Exception as e:
                 self.log_msg(e)
-        if self.over_entity:
-            try:
-                self.over_entity.send_state(f"{'%.2f' % (self._over_time / 60)}")
-            except Exception as e:
-                self.log_msg(e)
+
+    def send_tip(self):
+        if self.tip_entity:
+            self.tip_entity.send_switch_state(True)
+            time.sleep(.2)
+            self.tip_entity.send_switch_state(False)
 
     def log_msg(self, msg):
         python_box.log(msg, file="config/log_tomato.log")
