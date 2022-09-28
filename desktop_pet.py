@@ -1,16 +1,25 @@
+import os
 import subprocess
-import time
 
 import requests
+
+from common import gui
 
 
 class RelaxPet:
     def __init__(self):
-        self.app_path = r"D:\program\data\app\desktop-box\desktop-box.exe"
+        self.app_path = r"D:\program\data\app\desktop-box\desktop-box.application"
         self.app_api = "http://localhost:8090/"
 
     def run(self):
-        self.process = subprocess.Popen([self.app_path, ],
+        if not os.path.exists(self.app_path):
+            os.system("start https://www.xianneng.top/file/app/")
+            dirname = os.path.dirname(self.app_path)
+            os.makedirs(dirname, exist_ok=True)
+            os.system(f"explorer {dirname}")
+            gui.message().showinfo("下载安装",
+                                   message=f"{self.app_path}不存在！\n请下载网页中压缩文件:desktop-box.application.zip，解压放入已打开目录中")
+        self.process = subprocess.Popen(["explorer", self.app_path, ],
                                         stdout=subprocess.PIPE,
                                         stderr=subprocess.STDOUT,
                                         stdin=subprocess.DEVNULL)
@@ -40,7 +49,10 @@ class RelaxPet:
 if __name__ == '__main__':
     pet = RelaxPet()
     pet.run()
-    time.sleep(1)
-    pet.move(10, 1000, 1800, 10, 1)
-    pet.state(0.5)
-    time.sleep(1)
+    for i in range(50):
+        try:
+            pet.move(10, 1000, 1800, 10, 1)
+            pet.state(0)
+            pet.state(1)
+        except Exception as e:
+            print(e)

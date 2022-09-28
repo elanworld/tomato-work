@@ -197,7 +197,7 @@ class PomodoroClock:
             self.tip_entity.send_switch_state(False)
 
     def log_msg(self, msg):
-        python_box.log(msg, file="config/log_tomato.log")
+        python_box.log(msg, file="src/config/log_tomato.log")
 
 
 if __name__ == '__main__':
