@@ -16,7 +16,7 @@ DesktopPet.config
 **dist/
 **.exe
 **.png
-src/config/
+**.ini
 
 
 #java
