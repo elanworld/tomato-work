@@ -2,10 +2,10 @@
 import sys
 import time
 
+import paho.mqtt.client as mqtt
 import pyautogui
 from infi.systray import SysTrayIcon
 
-import paho.mqtt.client as mqtt
 from common import python_box
 from desktop_esheep import Sheep
 from desktop_pet import RelaxPet
@@ -67,7 +67,7 @@ class PomodoroClock:
                     tmp = HomeAssistantEntity(None, self.name)
                     client.will_set(tmp.status_topic, "offline")
 
-                base = MqttBase(self.config.get(self.host), int(self.config.get(self.port)),None, will_set)
+                base = MqttBase(self.config.get(self.host), int(self.config.get(self.port)), None, will_set)
                 self.use_entity = HomeAssistantEntity(base, self.name)
                 self.over_entity = HomeAssistantEntity(base, self.name)
                 self.tip_entity = HomeAssistantEntity(base, self.name)
@@ -153,6 +153,14 @@ class PomodoroClock:
                 self.sheep.add()
         self.sheep.remove_all()
         self.log_msg("番茄钟休息完毕")
+
+    def add_sheep(self, sheep: Sheep):
+        try:
+            sheep.add()
+        except PermissionError as e:
+            pyautogui.prompt(title="异常", text=f"权限异常，可尝试卸载esheep重新安装\n{e.__str__()}", timeout=10 * 1000)
+        except Exception as e:
+            pyautogui.prompt(title="异常", text=e.__str__(), timeout=10 * 1000)
 
     def add_use_time(self, duration: float):
         """

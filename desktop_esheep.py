@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+import time
 import webbrowser
 
 from common import gui, python_box
@@ -47,7 +48,7 @@ class Sheep:
             self.sheep_list.append(process)
         except Exception as e:
             print("打开esheep失败")
-            raise Exception(f"打开eshep失败,{e.__str__()}")
+            raise Exception(f"打开esheep失败,{e.__str__()}")
         return process
 
     def remove(self):
@@ -62,3 +63,16 @@ class Sheep:
         for sheep in self.sheep_list:
             sheep.kill()
         self.sheep_list.clear()
+
+
+if __name__ == '__main__':
+    sheep = Sheep()
+    try:
+        sheep.add()
+        sheep.add()
+        time.sleep(3)
+        sheep.remove_all()
+    except PermissionError as e:
+        print(f"权限异常，可尝试卸载esheep重新安装\n{e.__str__()}")
+    except Exception as e:
+        print(e.__str__())
