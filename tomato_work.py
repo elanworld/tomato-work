@@ -134,7 +134,7 @@ class PomodoroClock:
         self.add_use_time(work_time)
         pyautogui.confirm(title=title, text="开始休息", timeout=3 * 1000)
         start_relax_time = time.time()  # 开始休息时间点
-        self.sheep.add()
+        self.add_sheep(self.sheep)
         count = 0
         while True:
             count += 1
@@ -150,17 +150,18 @@ class PomodoroClock:
                 if is_cal:
                     if question_window(title, start_relax_time):
                         break
-                self.sheep.add()
+                self.add_sheep(self.sheep)
         self.sheep.remove_all()
         self.log_msg("番茄钟休息完毕")
 
-    def add_sheep(self, sheep: Sheep):
+    @staticmethod
+    def add_sheep(sheep: Sheep):
         try:
             sheep.add()
         except PermissionError as e:
-            pyautogui.prompt(title="异常", text=f"权限异常，可尝试卸载esheep重新安装\n{e.__str__()}", timeout=10 * 1000)
+            pyautogui.confirm(title="异常", text=f"权限异常，可尝试卸载esheep重新安装\n{e.__str__()}", timeout=10 * 1000)
         except Exception as e:
-            pyautogui.prompt(title="异常", text=e.__str__(), timeout=10 * 1000)
+            pyautogui.confirm(title=f"{type(e)}异常", text=e.__str__(), timeout=10 * 1000)
 
     def add_use_time(self, duration: float):
         """

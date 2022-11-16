@@ -37,18 +37,14 @@ class Sheep:
                 return join
 
     def add(self):
-        try:
-            sheep_exe = self.find_sheep_exec()
-            if sheep_exe is None:
-                return
-            process = subprocess.Popen([sheep_exe, ],
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.STDOUT,
-                                       stdin=subprocess.DEVNULL)
-            self.sheep_list.append(process)
-        except Exception as e:
-            print("打开esheep失败")
-            raise Exception(f"打开esheep失败,{e.__str__()}")
+        sheep_exe = self.find_sheep_exec()
+        if sheep_exe is None:
+            return
+        process = subprocess.Popen([sheep_exe, ],
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT,
+                                   stdin=subprocess.DEVNULL)
+        self.sheep_list.append(process)
         return process
 
     def remove(self):
