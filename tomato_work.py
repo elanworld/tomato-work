@@ -47,6 +47,8 @@ class PomodoroClock:
     use_time = "use time"
     over_time = "over time"
     name = "tomato"
+    cmd_start_tomato = "cmd start tomato"
+    cmd_end_tomato = "cmd end tomato"
 
     def __init__(self, config: dict, **kwargs):
         self.config = config
@@ -61,7 +63,7 @@ class PomodoroClock:
         self.timer = Timer()
         self._use_time = float(config.get(self.use_time))
         self._over_time = float(config.get(self.over_time))
-        if self.config.get(self.message):
+        if self.config.get(self.message) == "1":
             try:
                 def will_set(client: mqtt.Client):
                     tmp = HomeAssistantEntity(None, self.name)
@@ -124,6 +126,7 @@ class PomodoroClock:
             if wait_time > 60 * 60 * 5:
                 return
         self.log_msg("番茄钟计时开始")
+        self.log_msg(python_box.command(config.get(self.cmd_start_tomato))) if config.get(self.cmd_start_tomato) else None
         self.state = "计时开始"
         self.timer.init()
         if self.timer.sleep_ide(work_time) is True:
@@ -133,6 +136,7 @@ class PomodoroClock:
         self.timer.init()
         self.add_use_time(work_time)
         pyautogui.confirm(title=title, text="开始休息", timeout=3 * 1000)
+        self.log_msg(python_box.command(config.get(self.cmd_end_tomato))) if config.get(self.cmd_end_tomato) else None
         start_relax_time = time.time()  # 开始休息时间点
         self.add_sheep(self.sheep)
         count = 0
@@ -215,6 +219,8 @@ if __name__ == '__main__':
                                     {("%s" % PomodoroClock.host): "localhost",
                                      ("%s" % PomodoroClock.port): "1883",
                                      ("%s" % PomodoroClock.message): "0#是否发送消息1 0", PomodoroClock.today: 0,
+                                     ("%s" % PomodoroClock.cmd_start_tomato): "None#开始执行命令",
+                                     ("%s" % PomodoroClock.cmd_end_tomato): "None#结束执行命令",
                                      PomodoroClock.use_time: 0, PomodoroClock.over_time: 0, }, )
     if not config:
         print("请配置并重新运行")
