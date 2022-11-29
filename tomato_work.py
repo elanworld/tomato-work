@@ -49,6 +49,7 @@ class PomodoroClock:
     name = "tomato"
     cmd_start_tomato = "cmd start tomato"
     cmd_end_tomato = "cmd end tomato"
+    cmd_finish_tomato = "cmd finish tomato"
 
     def __init__(self, config: dict, **kwargs):
         self.config = config
@@ -143,12 +144,15 @@ class PomodoroClock:
         while True:
             count += 1
             self.send_tip()
-            for _ in range(5):
-                res = self.timer.sleep_ide(relax_need_time / 5, relax_need_time)
-                if res is True or res < relax_need_time / 5:
-                    return
-                self.screen_tip()
-                self.add_over_use_time(res)
+            try:
+                for _ in range(5):
+                    res = self.timer.sleep_ide(relax_need_time / 5, relax_need_time)
+                    if res is True or res < relax_need_time / 5:
+                        raise BrokenPipeError("break")  # 跳出多层循环
+                    self.screen_tip()
+                    self.add_over_use_time(res)
+            except BrokenPipeError:
+                break
             # 每超时三次提醒一次
             if count % 3 == 0:
                 if is_cal:
@@ -156,6 +160,7 @@ class PomodoroClock:
                         break
                 self.add_sheep(self.sheep)
         self.sheep.remove_all()
+        self.log_msg(python_box.command(config.get(self.cmd_finish_tomato))) if config.get(self.cmd_finish_tomato) else None
         self.log_msg("番茄钟休息完毕")
 
     @staticmethod
@@ -215,33 +220,37 @@ class PomodoroClock:
 
 
 if __name__ == '__main__':
-    config = python_box.read_config(PomodoroClock.ini,
-                                    {("%s" % PomodoroClock.host): "localhost",
-                                     ("%s" % PomodoroClock.port): "1883",
-                                     ("%s" % PomodoroClock.message): "0#是否发送消息1 0", PomodoroClock.today: 0,
-                                     ("%s" % PomodoroClock.cmd_start_tomato): "None#开始执行命令",
-                                     ("%s" % PomodoroClock.cmd_end_tomato): "None#结束执行命令",
-                                     PomodoroClock.use_time: 0, PomodoroClock.over_time: 0, }, )
-    if not config:
-        print("请配置并重新运行")
-        sys.exit(0)
-    clock = PomodoroClock(config)
+    try:
+        config = python_box.read_config(PomodoroClock.ini,
+                                        {("%s" % PomodoroClock.host): "localhost",
+                                         ("%s" % PomodoroClock.port): "1883",
+                                         ("%s" % PomodoroClock.message): "0#是否发送消息1 0", PomodoroClock.today: 0,
+                                         ("%s" % PomodoroClock.cmd_start_tomato): "None#开始执行命令",
+                                         ("%s" % PomodoroClock.cmd_end_tomato): "None#结束执行命令",
+                                         ("%s" % PomodoroClock.cmd_finish_tomato): "None#程序结束执行命令",
+                                         PomodoroClock.use_time: 0, PomodoroClock.over_time: 0, }, )
+        if not config:
+            print("请配置并重新运行")
+            sys.exit(0)
+        clock = PomodoroClock(config)
 
 
-    def exit_process(clock):
-        clock.__del__()
+        def exit_process(clock):
+            clock.__del__()
 
 
-    menu = (("显示状态", None, clock.show_state),)
-    systray = SysTrayIcon(None, "tomato sheep clock", menu,
-                          on_quit=lambda x: exit_process(clock))
-    systray.start()
-    if get_start_time() < 200:
-        time.sleep(300)
-    if "task" in sys.argv:
-        clock.run()
-    else:
-        for _ in range(24):
+        menu = (("显示状态", None, clock.show_state),)
+        systray = SysTrayIcon(None, "tomato sheep clock", menu,
+                              on_quit=lambda x: exit_process(clock))
+        systray.start()
+        if get_start_time() < 200:
+            time.sleep(300)
+        if "task" in sys.argv:
             clock.run()
-    clock.__del__()
-    systray.shutdown()
+        else:
+            for _ in range(24):
+                clock.run()
+        clock.__del__()
+        systray.shutdown()
+    except Exception as e:
+        pyautogui.confirm(title="运行错误", text=e.__str__())
