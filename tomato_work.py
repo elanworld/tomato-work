@@ -75,9 +75,9 @@ class PomodoroClock:
                 self.entity_tip = HomeAssistantEntity(base, self.name)
                 self.entity_tomato = HomeAssistantEntity(base, self.name)
                 self.entity_tomato_run = HomeAssistantEntity(base, self.name)
-                self.entity_use.send_sensor_config_topic("day_use", "当日使用时长", unit="分钟", expire_after=None, keep=True)
-                self.entity_over.send_sensor_config_topic("over_time", "超时时间", unit="分钟", expire_after=None, keep=True)
-                self.entity_tip.send_switch_config_topic("tip", "休息提醒", None)
+                self.entity_use.send_sensor_config_topic("day_use", "番茄使用时长", unit="分钟", expire_after=None, keep=True)
+                self.entity_over.send_sensor_config_topic("over_time", "番茄超时时间", unit="分钟", expire_after=None, keep=True)
+                self.entity_tip.send_switch_config_topic("tip", "番茄休息提醒", None)
                 self.entity_tomato.send_switch_config_topic("tomato", "番茄计时状态", None)
                 self.entity_tomato_run.send_switch_config_topic("tomato_run", "番茄运行", None)
             except Exception as e:
