@@ -87,8 +87,6 @@ class PomodoroClock:
         if self.send_state:
             self.entity_use.mq.close()
         self.sheep.remove_all()
-        self.timer.exit_tag = True
-        self.pet.__del__()
 
     def show_state(self, *args):
         pyautogui.confirm(title=self.state, text=f"{int(self.timer.get_duration() / 60)}分钟")
@@ -259,7 +257,7 @@ if __name__ == '__main__':
 
 
         def exit_process(clock):
-            clock.__del__()
+            clock.timer.exit_tag = True
 
 
         menu = (("显示状态", None, clock.show_state),)
@@ -273,9 +271,8 @@ if __name__ == '__main__':
         else:
             for _ in range(24):
                 clock.run()
-        clock.__del__()
         systray.shutdown()
+        clock.__del__()
     except Exception as e:
         pyautogui.confirm(title="运行错误", text=e.__str__())
         systray.shutdown()
-        clock.__del__()
