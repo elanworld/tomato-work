@@ -28,7 +28,9 @@ class RelaxPet:
         self.close()
 
     def move(self, x, y, x1=None, y1=None, duration=None):
-        body = {"x": x, "y": y, "x1": x1, "y1": y1, "duration": duration}
+        body = {"x": x, "y": y, "x1": x1, "y1": y1}
+        if duration:
+            body["duration"] = duration
         if x1 is not None:
             response = requests.post(self.app_api + "swap", json=body, timeout=5)
         else:
@@ -42,6 +44,12 @@ class RelaxPet:
         if not response.text.startswith("{"):
             print(response.text)
 
+    def show_path(self, path: str, delay: int = 50, width: int = 150, transparency: float = 0.3):
+        body = {"showPath": path, "delay": delay, "width": width, "transparency": transparency}
+        response = requests.post(self.app_api + "ShowPath", json=body, timeout=5)
+        if not response.text.startswith("{"):
+            print(response.text)
+
     def close(self):
         self.process.kill()
 
@@ -51,8 +59,8 @@ if __name__ == '__main__':
     pet.run()
     for i in range(50):
         try:
+            pet.state(1)
             pet.move(10, 1000, 1800, 10, 1)
             pet.state(0)
-            pet.state(1)
         except Exception as e:
             print(e)
