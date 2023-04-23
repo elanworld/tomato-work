@@ -1,6 +1,7 @@
 # python tomato_work.py [test] [task]
 import sys
 import time
+from collections import OrderedDict
 
 import paho.mqtt.client as mqtt
 import pyautogui
@@ -11,6 +12,7 @@ from desktop_esheep import Sheep
 from desktop_pet import RelaxPet
 from tools.server_box.homeassistant_mq_entity import HomeAssistantEntity
 from tools.server_box.mqtt_utils import MqttBase
+from tools.tomato_work.friendly_tip import DesktopTip
 from win_util import get_idle_duration, question_window, get_start_time
 
 
@@ -63,6 +65,11 @@ class PomodoroClock:
         self.timer = Timer()
         self._use_time = float(config.get(self.use_time))
         self._over_time = float(config.get(self.over_time))
+        self.desktop_tip = DesktopTip()
+        self.config_tomato_desktop_tip_end = None  # type: OrderedDict
+        self.config_tomato_desktop_tip_start = None  # type: OrderedDict
+        self.schedule_start = None
+        self.schedule_end = None
         if self.send_state:
             try:
                 def will_set(client: mqtt.Client):
@@ -76,7 +83,8 @@ class PomodoroClock:
                 self.entity_tomato = HomeAssistantEntity(base, self.name)
                 self.entity_tomato_run = HomeAssistantEntity(base, self.name)
                 self.entity_use.send_sensor_config_topic("day_use", "番茄使用时长", unit="分钟", expire_after=None, keep=True)
-                self.entity_over.send_sensor_config_topic("over_time", "番茄超时时间", unit="分钟", expire_after=None, keep=True)
+                self.entity_over.send_sensor_config_topic("over_time", "番茄超时时间", unit="分钟", expire_after=None,
+                                                          keep=True)
                 self.entity_tip.send_switch_config_topic("tip", "番茄休息提醒", None)
                 self.entity_tomato.send_switch_config_topic("tomato", "番茄计时状态", None)
                 self.entity_tomato_run.send_switch_config_topic("tomato_run", "番茄运行", None)
@@ -105,8 +113,12 @@ class PomodoroClock:
             self.entity_tomato_run.send_switch_state(True)
         self.state = "番茄钟计时开始"
         self.log_msg(self.state)
+        # 自定义命令
         if config.get(self.cmd_start_tomato):
             self.log_msg(python_box.command(config.get(self.cmd_start_tomato)))
+        # 桌面提示
+        if self.config_tomato_desktop_tip_start and self.config_tomato_desktop_tip_start.get("enable") == "1":
+            self.schedule_start = self.desktop_tip.start_schedule(self.config_tomato_desktop_tip_start, None)
         self.timer.init()
 
     def action_end(self):
@@ -117,6 +129,10 @@ class PomodoroClock:
         self.timer.init()
         if config.get(self.cmd_end_tomato):
             self.log_msg(python_box.command(config.get(self.cmd_end_tomato)))
+        if self.schedule_start:
+            self.schedule_start.shutdown()
+        if self.config_tomato_desktop_tip_end and self.config_tomato_desktop_tip_end.get("enable") == "1":
+            self.schedule_end = self.desktop_tip.start_schedule(self.config_tomato_desktop_tip_end, None)
 
     def action_finish(self):
         if self.send_state:
@@ -124,6 +140,8 @@ class PomodoroClock:
         self.sheep.remove_all()
         if config.get(self.cmd_finish_tomato):
             self.log_msg(python_box.command(config.get(self.cmd_finish_tomato)))
+        if self.schedule_end:
+            self.schedule_end.shutdown()
         self.log_msg("番茄钟休息完毕")
 
     def run(self):
@@ -250,10 +268,29 @@ if __name__ == '__main__':
                                          ("%s" % PomodoroClock.cmd_end_tomato): "None#结束执行命令",
                                          ("%s" % PomodoroClock.cmd_finish_tomato): "None#程序结束执行命令",
                                          PomodoroClock.use_time: 0, PomodoroClock.over_time: 0, }, )
+        config_tomato_desktop_tip_start = python_box.read_config("config/config_tomato_desktop_tip_start.ini",
+                                                                 {"enable": "0", "task1": {
+                                                                     "showPath": "path/to/png",
+                                                                     "delay": 50,
+                                                                     "width": 150,
+                                                                     "transparency": 0.3,
+                                                                     "cron": "*/10 * * * *",
+                                                                 }})
+        config_tomato_desktop_tip_end = python_box.read_config("config/config_tomato_desktop_tip_end.ini",
+                                                               {"enable": "0", "task1": {
+                                                                   "showPath": "path/to/png",
+                                                                   "delay": 50,
+                                                                   "width": 150,
+                                                                   "transparency": 0.3,
+                                                                   "cron": "*/10 * * * *",
+
+                                                               }})
         if not config:
             print("请配置并重新运行")
             sys.exit(0)
         clock = PomodoroClock(config)
+        clock.config_tomato_desktop_tip_start = config_tomato_desktop_tip_start
+        clock.config_tomato_desktop_tip_end = config_tomato_desktop_tip_end
 
 
         def exit_process(clock):
