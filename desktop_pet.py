@@ -24,9 +24,6 @@ class RelaxPet:
                                         stderr=subprocess.STDOUT,
                                         stdin=subprocess.DEVNULL)
 
-    def __del__(self):
-        self.close()
-
     def move(self, x, y, x1=None, y1=None, duration=None):
         body = {"x": x, "y": y, "x1": x1, "y1": y1}
         if duration:

@@ -4,6 +4,8 @@ import time
 from ctypes import Structure, c_uint
 from ctypes import windll, sizeof, byref
 
+import pyautogui
+import win32api
 import win32con
 import win32gui
 
@@ -82,5 +84,72 @@ class WindowsBalloonTip:
         win32gui.DestroyWindow(self.hwnd)
 
 
+def get_least_similar_monitor_rect(window_rect):
+    # 获取窗口位置和大小
+    x, y, w, h = window_rect
+
+    # 获取所有监视器信息
+    monitors = win32api.EnumDisplayMonitors()
+
+    # 记录最不相似的监视器
+    least_similar_monitor_rect = None
+    least_similar_monitor_distance = float('-inf')
+
+    # 遍历所有监视器
+    for monitor in monitors:
+        monitor_info = win32api.GetMonitorInfo(monitor[0])
+        monitor_rect = monitor_info['Monitor']
+
+        # 计算监视器的左上角坐标
+        monitor_x, monitor_y = monitor_rect[0], monitor_rect[1]
+
+        # 计算窗口左上角坐标和监视器左上角坐标的距离
+        distance = abs(x - monitor_x) + abs(y - monitor_y)
+
+        # 如果距离更大，则更新最不相似的监视器
+        if distance > least_similar_monitor_distance:
+            least_similar_monitor_rect = monitor_rect
+            least_similar_monitor_distance = distance
+
+    return least_similar_monitor_rect
+
+
+def move_window_to_second_screen():
+    # 获取当前活跃的窗口句柄
+    hwnd = win32gui.GetForegroundWindow()
+
+    # 获取当前窗口的位置和大小
+    rect_now = win32gui.GetWindowRect(hwnd)
+    left, top, right, bottom = rect_now
+    x, y = left, top
+    w, h = right - left, bottom - top
+    # 获取当前监视器
+    monitor_now = win32api.GetMonitorInfo(win32api.MonitorFromPoint((x, y), win32con.MONITOR_DEFAULTTONEAREST))
+
+    # 获取目标屏幕的位置和大小
+    monitor_target = get_least_similar_monitor_rect(rect_now)
+    monitor_w = monitor_target[2] - monitor_target[0]
+    monitor_h = monitor_target[3] - monitor_target[1]
+
+    # 计算出新窗口在目标屏幕的位置和大小
+    new_w = w
+    new_h = h
+
+    # 判断窗口是否最大化
+    placement = win32gui.GetWindowPlacement(hwnd)
+    if placement[1] == win32con.SW_MAXIMIZE:
+        # 如果窗口最大化，就先恢复原来的大小和位置
+        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+
+    # 移动窗口到新的位置
+    win32gui.SetWindowPos(hwnd, win32con.HWND_TOP, monitor_target[0], monitor_target[1], new_w, new_h,
+                          win32con.SWP_SHOWWINDOW)
+
+    if placement[1] == win32con.SW_MAXIMIZE:
+        # 最大化窗口，适应目标屏幕的大小
+        time.sleep(0.01)  # 有时窗口不是最大尺寸
+        win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
+
+
 if __name__ == '__main__':
-    WindowsBalloonTip("title", "contact")
+   print(10%50)

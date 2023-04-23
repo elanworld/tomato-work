@@ -1,6 +1,7 @@
-# python tomato_work.py [test] [task]
+# python tomato_work.py
 import sys
 import time
+import types
 from collections import OrderedDict
 
 import paho.mqtt.client as mqtt
@@ -13,7 +14,7 @@ from desktop_pet import RelaxPet
 from tools.server_box.homeassistant_mq_entity import HomeAssistantEntity
 from tools.server_box.mqtt_utils import MqttBase
 from tools.tomato_work.friendly_tip import DesktopTip
-from win_util import get_idle_duration, question_window, get_start_time
+from win_util import get_idle_duration, get_start_time, move_window_to_second_screen
 
 
 class Timer:
@@ -27,15 +28,19 @@ class Timer:
     def get_duration(self):
         return time.time() - self.start
 
-    def sleep_ide(self, sec: float, need_ide: float = None, init=False):
+    def sleep_ide(self, sec: float, need_ide: float = None, init=False, loop_do: types.FunctionType = None,
+                  loop_do_time: int = None):
         start = time.time()
         if init:
             self.start = start
         for i in range(int(sec)):
-            if need_ide and need_ide <= get_idle_duration():
+            idle_duration = get_idle_duration()
+            if need_ide and need_ide <= idle_duration:
                 return int(time.time() - start)
             if self.exit_tag is True:
                 return True
+            if loop_do and loop_do_time and (i + 1 % loop_do_time) == 0:
+                loop_do(i + 1)
             time.sleep(1)
         return int(time.time() - start)
 
@@ -50,6 +55,10 @@ class PomodoroClock:
     over_time = "over time"
     name = "tomato"
     title = "番茄钟"
+    tomato_time = "tomato time"
+    tomato_relax_time = "tomato relax time"
+    run_loop = "run loop"
+    move_window_time = "move windows tip loop time"
     cmd_start_tomato = "cmd start tomato"
     cmd_end_tomato = "cmd end tomato"
     cmd_finish_tomato = "cmd finish tomato"
@@ -145,14 +154,8 @@ class PomodoroClock:
         self.log_msg("番茄钟休息完毕")
 
     def run(self):
-        if "test" in sys.argv:
-            is_cal = False  # 是否计算跳过
-            work_time = 2.0  # 工作时间
-            relax_need_time = 5.0  # 要求休息时间
-        else:
-            is_cal = False
-            work_time = 25 * 60
-            relax_need_time = 5 * 60
+        work_time = float(config.get(PomodoroClock.tomato_time)) * 60
+        relax_need_time = float(config.get(PomodoroClock.tomato_relax_time)) * 60
         try:
             self.pet.run()
             self.pet.state(0)
@@ -173,12 +176,12 @@ class PomodoroClock:
                 self.log_msg("超时退出")
                 return
         self.action_start()
+        # 开始番茄
         if self.timer.sleep_ide(work_time) is True:
             return
         self.action_end()
         self.add_use_time(work_time)
         pyautogui.confirm(title=self.title, text="开始休息", timeout=3 * 1000)
-        start_relax_time = time.time()  # 开始休息时间点
         self.add_sheep(self.sheep)
         # 休息并提醒
         count = 0
@@ -187,20 +190,24 @@ class PomodoroClock:
             self.send_tip()
             try:
                 for _ in range(5):
-                    res = self.timer.sleep_ide(relax_need_time / 5, relax_need_time)
+                    res = self.timer.sleep_ide(relax_need_time / 5, relax_need_time,
+                                               loop_do=self.move_windows,
+                                               loop_do_time=self.config.get(PomodoroClock.move_window_time))
                     if res is True or res < relax_need_time / 5:
-                        raise BrokenPipeError("break")  # 跳出多层循环
+                        raise BrokenPipeError("break")  # 空闲满足跳出多层循环
                     self.screen_tip()
                     self.add_over_use_time(res)
             except BrokenPipeError:
                 break
             # 每超时三次提醒一次
             if count % 3 == 0:
-                if is_cal:
-                    if question_window(self.title, start_relax_time):
-                        break
                 self.add_sheep(self.sheep)
         self.action_finish()
+
+    @staticmethod
+    def move_windows(sec: int = None):
+        if get_idle_duration() < 15 and sec and sec > 15:
+            move_window_to_second_screen()
 
     @staticmethod
     def add_sheep(sheep: Sheep):
@@ -261,30 +268,30 @@ class PomodoroClock:
 if __name__ == '__main__':
     try:
         config = python_box.read_config(PomodoroClock.ini,
-                                        {("%s" % PomodoroClock.host): "localhost",
+                                        {("%s" % PomodoroClock.tomato_time): 25,
+                                         ("%s" % PomodoroClock.tomato_relax_time): 5,
+                                         ("%s" % PomodoroClock.run_loop): 1,
+                                         ("%s" % PomodoroClock.move_window_time): None,
+                                         ("%s" % PomodoroClock.host): "localhost",
                                          ("%s" % PomodoroClock.port): "1883",
-                                         ("%s" % PomodoroClock.message): "0#是否发送消息1 0", PomodoroClock.today: 0,
+                                         ("%s" % PomodoroClock.message): "0#是否发送消息1 0",
                                          ("%s" % PomodoroClock.cmd_start_tomato): "None#开始执行命令",
                                          ("%s" % PomodoroClock.cmd_end_tomato): "None#结束执行命令",
                                          ("%s" % PomodoroClock.cmd_finish_tomato): "None#程序结束执行命令",
+                                         PomodoroClock.today: 0,
                                          PomodoroClock.use_time: 0, PomodoroClock.over_time: 0, }, )
-        config_tomato_desktop_tip_start = python_box.read_config("config/config_tomato_desktop_tip_start.ini",
-                                                                 {"enable": "0", "task1": {
-                                                                     "showPath": "path/to/png",
-                                                                     "delay": 50,
-                                                                     "width": 150,
-                                                                     "transparency": 0.3,
-                                                                     "cron": "*/10 * * * *",
-                                                                 }})
-        config_tomato_desktop_tip_end = python_box.read_config("config/config_tomato_desktop_tip_end.ini",
-                                                               {"enable": "0", "task1": {
-                                                                   "showPath": "path/to/png",
-                                                                   "delay": 50,
-                                                                   "width": 150,
-                                                                   "transparency": 0.3,
-                                                                   "cron": "*/10 * * * *",
+        default_dict = {"enable": "0", "task1": {
+            "showPath": "path/to/png",
+            "delay": 50,
+            "width": 150,
+            "transparency": 0.3,
+            "cron": "*/10 * * * *",
 
-                                                               }})
+        }}
+        config_tomato_desktop_tip_start = python_box.read_config("config/config_tomato_desktop_tip_start.ini",
+                                                                 default_dict)
+        config_tomato_desktop_tip_end = python_box.read_config("config/config_tomato_desktop_tip_end.ini",
+                                                               default_dict)
         if not config:
             print("请配置并重新运行")
             sys.exit(0)
@@ -303,11 +310,8 @@ if __name__ == '__main__':
         systray.start()
         if get_start_time() < 200:
             time.sleep(300)
-        if "task" in sys.argv:
+        for _ in range(config.get(PomodoroClock.run_loop)):
             clock.run()
-        else:
-            for _ in range(24):
-                clock.run()
         systray.shutdown()
         clock.__del__()
     except Exception as e:
