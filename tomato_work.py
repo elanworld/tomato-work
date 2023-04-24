@@ -69,7 +69,7 @@ class PomodoroClock:
         self._today = self.config.get(self.today)
         self._exit_tag = None
         self.state = ""
-        self.send_state = self.config.get(self.message) == "1"
+        self.send_state = self.config.get(self.message) == 1
         self.sheep = Sheep()
         self.timer = Timer()
         self._use_time = float(config.get(self.use_time))
@@ -126,7 +126,7 @@ class PomodoroClock:
         if config.get(self.cmd_start_tomato):
             self.log_msg(python_box.command(config.get(self.cmd_start_tomato)))
         # 桌面提示
-        if self.config_tomato_desktop_tip_start and self.config_tomato_desktop_tip_start.get("enable") == "1":
+        if self.config_tomato_desktop_tip_start and self.config_tomato_desktop_tip_start.get("enable") == 1:
             self.schedule_start = self.desktop_tip.start_schedule(self.config_tomato_desktop_tip_start, None)
         self.timer.init()
 
@@ -140,7 +140,7 @@ class PomodoroClock:
             self.log_msg(python_box.command(config.get(self.cmd_end_tomato)))
         if self.schedule_start:
             self.schedule_start.shutdown()
-        if self.config_tomato_desktop_tip_end and self.config_tomato_desktop_tip_end.get("enable") == "1":
+        if self.config_tomato_desktop_tip_end and self.config_tomato_desktop_tip_end.get("enable") == 1:
             self.schedule_end = self.desktop_tip.start_schedule(self.config_tomato_desktop_tip_end, None)
 
     def action_finish(self):
