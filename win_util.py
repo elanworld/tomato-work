@@ -3,6 +3,7 @@ import random
 import time
 from ctypes import Structure, c_uint
 from ctypes import windll, sizeof, byref
+from typing import List
 
 import pyautogui
 import win32api
@@ -114,42 +115,58 @@ def get_least_similar_monitor_rect(window_rect):
     return least_similar_monitor_rect
 
 
-def move_window_to_second_screen():
+def get_window_position_rate_on_screen(rect, monitor_rect):
+    # 获取窗口的位置和大小
+    left, top, right, bottom = rect
+    # 计算窗口在屏幕中的坐标占比
+    x = (left - monitor_rect[0]) / abs(monitor_rect[2] - monitor_rect[0])
+    y = (top - monitor_rect[1]) / abs(monitor_rect[3] - monitor_rect[1])
+    x1 = (right - monitor_rect[0]) / abs(monitor_rect[2] - monitor_rect[0])
+    y1 = (bottom - monitor_rect[1]) / abs(monitor_rect[3] - monitor_rect[1])
+    return x, y, x1, y1
+
+
+def get_window_rect_from_position_rate(position, monitor_rect):
+    # 计算窗口在屏幕中的实际坐标
+    left = int(position[0] * abs(monitor_rect[2] - monitor_rect[0]) + monitor_rect[0])
+    top = int(position[1] * abs(monitor_rect[3] - monitor_rect[1]) + monitor_rect[1])
+    right = int(position[2] * abs(monitor_rect[2] - monitor_rect[0]) + monitor_rect[0])
+    bottom = int(position[3] * abs(monitor_rect[3] - monitor_rect[1]) + monitor_rect[1])
+    return left, top, right, bottom
+
+
+def move_window_to_second_screen(device_scale: List[tuple] = None):  # device_scale: 屏幕移动后缩放，依然存在问题，移动命令不准确
     # 获取当前活跃的窗口句柄
     hwnd = win32gui.GetForegroundWindow()
-
     # 获取当前窗口的位置和大小
     rect_now = win32gui.GetWindowRect(hwnd)
     left, top, right, bottom = rect_now
-    x, y = left, top
-    w, h = right - left, bottom - top
     # 获取当前监视器
-    monitor_now = win32api.GetMonitorInfo(win32api.MonitorFromPoint((x, y), win32con.MONITOR_DEFAULTTONEAREST))
+    monitor_now = win32api.GetMonitorInfo(win32api.MonitorFromPoint((left, top), win32con.MONITOR_DEFAULTTONEAREST))
 
     # 获取目标屏幕的位置和大小
     monitor_target = get_least_similar_monitor_rect(rect_now)
-    monitor_w = monitor_target[2] - monitor_target[0]
-    monitor_h = monitor_target[3] - monitor_target[1]
+    position_rate = get_window_position_rate_on_screen(rect_now, monitor_now["Monitor"])
 
     # 计算出新窗口在目标屏幕的位置和大小
-    new_w = w
-    new_h = h
+    x, y, x1, y1 = get_window_rect_from_position_rate(position_rate, monitor_target)
+    for info in device_scale if device_scale else []:
+        if info[0] == monitor_now["Device"]:
+            x, y, x1, y1 = int(x * info[1]), int(y * info[1]), int(x1 * info[1]), int(y1 * info[1])
 
     # 判断窗口是否最大化
     placement = win32gui.GetWindowPlacement(hwnd)
     if placement[1] == win32con.SW_MAXIMIZE:
         # 如果窗口最大化，就先恢复原来的大小和位置
         win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-
     # 移动窗口到新的位置
-    win32gui.SetWindowPos(hwnd, win32con.HWND_TOP, monitor_target[0], monitor_target[1], new_w, new_h,
-                          win32con.SWP_SHOWWINDOW)
+    win32gui.SetWindowPos(hwnd, win32con.HWND_TOP, x, y, x1 - x, y1 - y, win32con.SWP_NOSIZE)
 
     if placement[1] == win32con.SW_MAXIMIZE:
         # 最大化窗口，适应目标屏幕的大小
-        time.sleep(0.01)  # 有时窗口不是最大尺寸
+        time.sleep(0.05)  # 有时窗口不是最大尺寸
         win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
 
 
 if __name__ == '__main__':
-   print(10%50)
+    move_window_to_second_screen([('\\\\.\\DISPLAY3', 1.25)])
