@@ -195,7 +195,6 @@ class PomodoroClock:
                                                loop_do_time=self.config.get(PomodoroClock.move_window_time))
                     if res is True or res < relax_need_time / 5:
                         raise BrokenPipeError("break")  # 空闲满足跳出多层循环
-                    self.screen_tip()
                     self.add_over_use_time(res)
             except BrokenPipeError:
                 break
