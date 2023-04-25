@@ -39,7 +39,7 @@ class Timer:
                 return int(time.time() - start)
             if self.exit_tag is True:
                 return True
-            if loop_do and loop_do_time and (i + 1 % loop_do_time) == 0:
+            if loop_do and loop_do_time and ((i + 1) % loop_do_time) == 0:
                 loop_do(i + 1)
             time.sleep(1)
         return int(time.time() - start)
