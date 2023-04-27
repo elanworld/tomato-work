@@ -5,6 +5,7 @@ from collections import OrderedDict
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from common import python_box
 from desktop_pet import RelaxPet
@@ -26,9 +27,14 @@ class DesktopTip:
         scheduler = BlockingScheduler() if block else BackgroundScheduler()
         for task in config.values():
             if type(task) == OrderedDict:
-                scheduler.add_job(func=self.show_path, args=[task.get("showPath"), task.get("delay"), task.get("width"),
-                                                        task.get("transparency")],
-                                  trigger=CronTrigger.from_crontab(task.get("cron")))
+                if type(task.get("cron")) == int:
+                    scheduler.add_job(func=self.show_path, args=[task.get("showPath"), task.get("delay"), task.get("width"),
+                                                            task.get("transparency")],
+                                      trigger=IntervalTrigger(seconds=task.get("cron")))
+                else:
+                    scheduler.add_job(func=self.show_path, args=[task.get("showPath"), task.get("delay"), task.get("width"),
+                                                            task.get("transparency")],
+                                      trigger=CronTrigger.from_crontab(task.get("cron")))
         scheduler.start()
         return scheduler
 
