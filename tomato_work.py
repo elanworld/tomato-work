@@ -58,7 +58,8 @@ class PomodoroClock:
     tomato_time = "tomato time"
     tomato_relax_time = "tomato relax time"
     run_loop = "run loop"
-    move_window_time = "move windows tip loop time"
+    move_window_time_start = "move windows tip loop time start"
+    move_window_time_end = "move windows tip loop time end"
     cmd_start_tomato = "cmd start tomato"
     cmd_end_tomato = "cmd end tomato"
     cmd_finish_tomato = "cmd finish tomato"
@@ -177,7 +178,8 @@ class PomodoroClock:
                 return
         self.action_start()
         # 开始番茄
-        if self.timer.sleep_ide(work_time) is True:
+        if self.timer.sleep_ide(work_time, loop_do=self.move_windows,
+                                loop_do_time=self.config.get(PomodoroClock.move_window_time_start)) is True:
             return
         self.action_end()
         self.add_use_time(work_time)
@@ -192,7 +194,7 @@ class PomodoroClock:
                 for _ in range(5):
                     res = self.timer.sleep_ide(relax_need_time / 5, relax_need_time,
                                                loop_do=self.move_windows,
-                                               loop_do_time=self.config.get(PomodoroClock.move_window_time))
+                                               loop_do_time=self.config.get(PomodoroClock.move_window_time_start))
                     if res is True or res < relax_need_time / 5:
                         raise BrokenPipeError("break")  # 空闲满足跳出多层循环
                     self.add_over_use_time(res)
@@ -270,7 +272,8 @@ if __name__ == '__main__':
                                         {("%s" % PomodoroClock.tomato_time): 25,
                                          ("%s" % PomodoroClock.tomato_relax_time): 5,
                                          ("%s" % PomodoroClock.run_loop): 1,
-                                         ("%s" % PomodoroClock.move_window_time): None,
+                                         ("%s" % PomodoroClock.move_window_time_start): None,
+                                         ("%s" % PomodoroClock.move_window_time_end): None,
                                          ("%s" % PomodoroClock.host): "localhost",
                                          ("%s" % PomodoroClock.port): "1883",
                                          ("%s" % PomodoroClock.message): "0#是否发送消息1 0",
