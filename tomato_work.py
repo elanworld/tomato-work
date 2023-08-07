@@ -100,6 +100,8 @@ class PomodoroClock:
                 self.entity_tomato_run.send_switch_config_topic("tomato_run", "番茄运行", None)
             except Exception as e:
                 self.log_msg(e)
+                self.send_state = False
+                pyautogui.alert(title="提交错误", text=e.__str__(), timeout=3 * 1000)
 
     def __del__(self):
         if self.send_state:
@@ -183,7 +185,7 @@ class PomodoroClock:
             return
         self.action_end()
         self.add_use_time(work_time)
-        pyautogui.confirm(title=self.title, text="开始休息", timeout=3 * 1000)
+        pyautogui.alert(title=self.title, text="开始休息", timeout=3 * 1000)
         self.add_sheep(self.sheep)
         # 休息并提醒
         count = 0
