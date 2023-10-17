@@ -1,6 +1,7 @@
 # python tomato_work.py
 import sys
 import time
+import traceback
 import types
 from collections import OrderedDict
 
@@ -99,6 +100,7 @@ class PomodoroClock:
                 self.entity_tomato.send_switch_config_topic("tomato", "番茄计时状态", None)
                 self.entity_tomato_run.send_switch_config_topic("tomato_run", "番茄运行", None)
             except Exception as e:
+                traceback.print_exc()
                 self.log_msg(e)
                 self.send_state = False
                 pyautogui.alert(title="提交错误", text=e.__str__(), timeout=3 * 1000)
@@ -163,6 +165,7 @@ class PomodoroClock:
             self.pet.run()
             self.pet.state(0)
         except Exception as e:
+            traceback.print_exc()
             self.log_msg(e)
         text = "番茄钟开始"
         if get_idle_duration() > 5:
@@ -319,5 +322,6 @@ if __name__ == '__main__':
         systray.shutdown()
         clock.__del__()
     except Exception as e:
+        traceback.print_exc()
         pyautogui.confirm(title="运行错误", text=e.__str__())
         systray.shutdown()
