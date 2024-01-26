@@ -4,6 +4,7 @@ import time
 import traceback
 import types
 from collections import OrderedDict
+from typing import Callable
 
 import paho.mqtt.client as mqtt
 import pyautogui
@@ -29,7 +30,7 @@ class Timer:
     def get_duration(self):
         return time.time() - self.start
 
-    def sleep_ide(self, sec: float, need_ide: float = None, init=False, loop_do: types.FunctionType = None,
+    def sleep_ide(self, sec: float, need_ide: float = None, init=False, loop_do: Callable[[int], None] = None,
                   loop_do_time: int = None):
         start = time.time()
         if init:
@@ -106,9 +107,9 @@ class PomodoroClock:
                 pyautogui.alert(title="提交错误", text=e.__str__(), timeout=3 * 1000)
 
     def __del__(self):
+        self.sheep.remove_all()
         if self.send_state:
             self.entity_use.mq.close()
-        self.sheep.remove_all()
 
     def show_state(self, *args):
         pyautogui.confirm(title=self.state, text=f"{int(self.timer.get_duration() / 60)}分钟")
@@ -167,14 +168,19 @@ class PomodoroClock:
         except Exception as e:
             traceback.print_exc()
             self.log_msg(e)
+        # 开始提示
         text = "番茄钟开始"
         if get_idle_duration() > 5:
-            pyautogui.confirm(title=self.title, text=text, timeout=1 * 1000)
+            confirm = pyautogui.confirm(title=self.title, text=text, timeout=1 * 1000)
+            if confirm == 'Cancel':
+                return
         # 空闲时等待五小时
         wait_time = 0
         while True:
             if get_idle_duration() < 2:
-                pyautogui.confirm(title=self.title, text=text)
+                confirm = pyautogui.confirm(title=self.title, text=text)
+                if confirm == 'Cancel':
+                    return
                 break
             time.sleep(2)
             wait_time += 2
@@ -211,7 +217,7 @@ class PomodoroClock:
         self.action_finish()
 
     @staticmethod
-    def move_windows(sec: int = None):
+    def move_windows(sec: int = None, *args, **kwargs):
         if get_idle_duration() < 15 and sec and sec > 15:
             move_window_to_second_screen()
 
