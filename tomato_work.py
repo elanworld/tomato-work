@@ -30,21 +30,20 @@ class Timer:
     def get_duration(self):
         return time.time() - self.start
 
-    def sleep_ide(self, sec: float, need_ide: float = None, init=False, loop_do: Callable[[int], None] = None,
+    def sleep_ide(self, sec: float, need_ide: float = None, loop_do: Callable[[int], None] = None,
                   loop_do_time: int = None):
         start = time.time()
-        if init:
-            self.start = start
+        self.start = start
         for i in range(int(sec)):
             idle_duration = get_idle_duration()
             if need_ide and need_ide <= idle_duration:
-                return int(time.time() - start)
+                return time.time() - start
             if self.exit_tag is True:
-                return True
+                return 0
             if loop_do and loop_do_time and ((i + 1) % loop_do_time) == 0:
                 loop_do(i + 1)
             time.sleep(1)
-        return int(time.time() - start)
+        return sec
 
 
 class PomodoroClock:
@@ -189,8 +188,8 @@ class PomodoroClock:
                 return
         self.action_start()
         # 开始番茄
-        if self.timer.sleep_ide(work_time, loop_do=self.move_windows,
-                                loop_do_time=self.config.get(PomodoroClock.move_window_time_start)) is True:
+        if not self.timer.sleep_ide(work_time, loop_do=self.move_windows,
+                                loop_do_time=self.config.get(PomodoroClock.move_window_time_start)):
             return
         self.action_end()
         self.add_use_time(work_time)
@@ -202,11 +201,12 @@ class PomodoroClock:
             count += 1
             self.send_tip()
             try:
-                for _ in range(5):
-                    res = self.timer.sleep_ide(relax_need_time / 5, relax_need_time,
+                loop_time = 5
+                for _ in range(loop_time):
+                    res = self.timer.sleep_ide(int(relax_need_time / loop_time), relax_need_time,
                                                loop_do=self.move_windows,
                                                loop_do_time=self.config.get(PomodoroClock.move_window_time_start))
-                    if res is True or res < relax_need_time / 5:
+                    if not res or res < int(relax_need_time / loop_time):
                         raise BrokenPipeError("break")  # 空闲满足跳出多层循环
                     self.add_over_use_time(res)
             except BrokenPipeError:
