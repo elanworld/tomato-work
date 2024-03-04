@@ -2,7 +2,6 @@
 import sys
 import time
 import traceback
-import types
 from collections import OrderedDict
 from typing import Callable
 
@@ -27,13 +26,15 @@ class Timer:
     def init(self):
         self.start = time.time()
 
+    def set_exit_tag(self, value: bool):
+        self.exit_tag = value
+
     def get_duration(self):
         return time.time() - self.start
 
     def sleep_ide(self, sec: float, need_ide: float = None, loop_do: Callable[[int], None] = None,
                   loop_do_time: int = None):
         start = time.time()
-        self.start = start
         for i in range(int(sec)):
             idle_duration = get_idle_duration()
             if need_ide and need_ide <= idle_duration:
@@ -46,11 +47,12 @@ class Timer:
         return sec
 
 
-class PomodoroClock:
+class PomodoroClock(dict):
     host = "mq host"
     port = "mq port"
     message = "send message"
     ini = "config/config_tomato.ini"
+    data_ini = "config/data_day_over_time.ini"
     today = "today"
     use_time = "use time"
     over_time = "over time"
@@ -66,6 +68,7 @@ class PomodoroClock:
     cmd_finish_tomato = "cmd finish tomato"
 
     def __init__(self, config: dict, **kwargs):
+        super().__init__()
         self.config = config
         self.pet = RelaxPet()
         self._today = self.config.get(self.today)
@@ -77,38 +80,38 @@ class PomodoroClock:
         self._use_time = float(config.get(self.use_time))
         self._over_time = float(config.get(self.over_time))
         self.desktop_tip = DesktopTip()
+        self.systray = SysTrayIcon(None, "tomato sheep clock", (("显示状态", None, self.show_state),),
+                                   on_quit=lambda x: self.timer.set_exit_tag(True))
+        self.systray.start()
         self.config_tomato_desktop_tip_end = None  # type: OrderedDict
         self.config_tomato_desktop_tip_start = None  # type: OrderedDict
         self.schedule_start = None
         self.schedule_end = None
         if self.send_state:
-            try:
-                def will_set(client: mqtt.Client):
-                    tmp = HomeAssistantEntity(None, self.name)
-                    client.will_set(tmp.status_topic, "offline")
+            def will_set(client: mqtt.Client):
+                tmp = HomeAssistantEntity(None, self.name)
+                client.will_set(tmp.status_topic, "offline")
 
-                base = MqttBase(self.config.get(self.host), int(self.config.get(self.port)), None, will_set)
-                self.entity_use = HomeAssistantEntity(base, self.name)
-                self.entity_over = HomeAssistantEntity(base, self.name)
-                self.entity_tip = HomeAssistantEntity(base, self.name)
-                self.entity_tomato = HomeAssistantEntity(base, self.name)
-                self.entity_tomato_run = HomeAssistantEntity(base, self.name)
-                self.entity_use.send_sensor_config_topic("day_use", "番茄使用时长", unit="分钟", expire_after=None, keep=True)
-                self.entity_over.send_sensor_config_topic("over_time", "番茄超时时间", unit="分钟", expire_after=None,
-                                                          keep=True)
-                self.entity_tip.send_switch_config_topic("tip", "番茄休息提醒", None)
-                self.entity_tomato.send_switch_config_topic("tomato", "番茄计时状态", None)
-                self.entity_tomato_run.send_switch_config_topic("tomato_run", "番茄运行", None)
-            except Exception as e:
-                traceback.print_exc()
-                self.log_msg(e)
-                self.send_state = False
-                pyautogui.alert(title="提交错误", text=e.__str__(), timeout=3 * 1000)
+            self.base_mqtt = MqttBase(self.config.get(self.host), int(self.config.get(self.port)), None, will_set,
+                                      connect_now=False)
+            self.entity_use = HomeAssistantEntity(self.base_mqtt, self.name)
+            self.entity_over = HomeAssistantEntity(self.base_mqtt, self.name)
+            self.entity_tip = HomeAssistantEntity(self.base_mqtt, self.name)
 
     def __del__(self):
         self.sheep.remove_all()
         if self.send_state:
-            self.entity_use.mq.close()
+            self.base_mqtt.close()
+        if getattr(self, "systray", None):
+            self.systray.shutdown()
+
+    def connect_mqtt(self):
+        if self.send_state:
+            self.base_mqtt.connect()
+            self.entity_use.send_sensor_config_topic("day_use", "番茄使用时长", unit="分钟", expire_after=None, keep=True)
+            self.entity_over.send_sensor_config_topic("over_time", "番茄超时时间", unit="分钟", expire_after=None,
+                                                      keep=True)
+            self.entity_tip.send_switch_config_topic("tip", "番茄休息提醒", None)
 
     def show_state(self, *args):
         pyautogui.confirm(title=self.state, text=f"{int(self.timer.get_duration() / 60)}分钟")
@@ -122,9 +125,6 @@ class PomodoroClock:
             self.log_msg(e)
 
     def action_start(self):
-        if self.send_state:
-            self.entity_tomato.send_switch_state(True)
-            self.entity_tomato_run.send_switch_state(True)
         self.state = "番茄钟计时开始"
         self.log_msg(self.state)
         # 自定义命令
@@ -136,8 +136,6 @@ class PomodoroClock:
         self.timer.init()
 
     def action_end(self):
-        if self.send_state:
-            self.entity_tomato.send_switch_state(False)
         self.state = "番茄钟计时结束"
         self.log_msg(self.state)
         self.timer.init()
@@ -149,8 +147,6 @@ class PomodoroClock:
             self.schedule_end = self.desktop_tip.start_schedule(self.config_tomato_desktop_tip_end, None)
 
     def action_finish(self):
-        if self.send_state:
-            self.entity_tomato_run.send_switch_state(False)
         self.sheep.remove_all()
         if config.get(self.cmd_finish_tomato):
             self.log_msg(python_box.command(config.get(self.cmd_finish_tomato)))
@@ -189,7 +185,7 @@ class PomodoroClock:
         self.action_start()
         # 开始番茄
         if not self.timer.sleep_ide(work_time, loop_do=self.move_windows,
-                                loop_do_time=self.config.get(PomodoroClock.move_window_time_start)):
+                                    loop_do_time=self.config.get(PomodoroClock.move_window_time_start)):
             return
         self.action_end()
         self.add_use_time(work_time)
@@ -217,8 +213,8 @@ class PomodoroClock:
         self.action_finish()
 
     @staticmethod
-    def move_windows(sec: int = None, *args, **kwargs):
-        if get_idle_duration() < 15 and sec and sec > 15:
+    def move_windows(*args, **kwargs):
+        if get_idle_duration() < 15:
             move_window_to_second_screen()
 
     @staticmethod
@@ -259,13 +255,11 @@ class PomodoroClock:
             self.config[self.over_time] = self._over_time
 
     def save_state(self):
-        python_box.write_config(self.config, PomodoroClock.ini)
+        python_box.write_config({self.today: self.config.get(self.today), self.use_time: self.config.get(self.use_time),
+                                 self.over_time: self.config.get(self.over_time)}, PomodoroClock.data_ini)
         if self.send_state:
-            try:
-                self.entity_use.send_sensor_state(f"{'%.2f' % (self._use_time / 60)}")
-                self.entity_over.send_sensor_state(f"{'%.2f' % (self._over_time / 60)}")
-            except Exception as e:
-                self.log_msg(e)
+            self.entity_use.send_sensor_state(f"{'%.2f' % (self._use_time / 60)}")
+            self.entity_over.send_sensor_state(f"{'%.2f' % (self._over_time / 60)}")
 
     def send_tip(self):
         if self.send_state:
@@ -290,9 +284,7 @@ if __name__ == '__main__':
                                          ("%s" % PomodoroClock.message): "0#是否发送消息1 0",
                                          ("%s" % PomodoroClock.cmd_start_tomato): "None#开始执行命令",
                                          ("%s" % PomodoroClock.cmd_end_tomato): "None#结束执行命令",
-                                         ("%s" % PomodoroClock.cmd_finish_tomato): "None#程序结束执行命令",
-                                         PomodoroClock.today: 0,
-                                         PomodoroClock.use_time: 0, PomodoroClock.over_time: 0, }, )
+                                         ("%s" % PomodoroClock.cmd_finish_tomato): "None#程序结束执行命令", }, )
         default_dict = {"enable": "0", "task1": {
             "showPath": "path/to/png",
             "delay": 50,
@@ -305,29 +297,22 @@ if __name__ == '__main__':
                                                                  default_dict)
         config_tomato_desktop_tip_end = python_box.read_config("config/config_tomato_desktop_tip_end.ini",
                                                                default_dict)
+        data_over_time = python_box.read_config(PomodoroClock.data_ini,
+                                                {PomodoroClock.today: 0, PomodoroClock.use_time: 0,
+                                                 PomodoroClock.over_time: 0})
+        config.update(data_over_time)
         if not config:
             print("请配置并重新运行")
             sys.exit(0)
         clock = PomodoroClock(config)
         clock.config_tomato_desktop_tip_start = config_tomato_desktop_tip_start
         clock.config_tomato_desktop_tip_end = config_tomato_desktop_tip_end
+        clock.connect_mqtt()
 
-
-        def exit_process(clock):
-            clock.timer.exit_tag = True
-
-
-        menu = (("显示状态", None, clock.show_state),)
-        systray = SysTrayIcon(None, "tomato sheep clock", menu,
-                              on_quit=lambda x: exit_process(clock))
-        systray.start()
         if get_start_time() < 200:
-            time.sleep(300)
+            time.sleep(300)  # 开机等待
         for _ in range(config.get(PomodoroClock.run_loop)):
             clock.run()
-        systray.shutdown()
         clock.__del__()
     except Exception as e:
         traceback.print_exc()
-        pyautogui.confirm(title="运行错误", text=e.__str__())
-        systray.shutdown()
