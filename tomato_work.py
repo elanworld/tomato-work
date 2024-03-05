@@ -69,16 +69,18 @@ class PomodoroClock(dict):
 
     def __init__(self, config: dict, **kwargs):
         super().__init__()
+        # data
+        self.today_str = ""
+        self.user_time_sec = 0
+        self.over_time_sec = 0
+
         self.config = config
         self.pet = RelaxPet()
-        self._today = self.config.get(self.today)
         self._exit_tag = None
         self.state = ""
         self.send_state = self.config.get(self.message) == 1
         self.sheep = Sheep()
         self.timer = Timer()
-        self._use_time = float(config.get(self.use_time))
-        self._over_time = float(config.get(self.over_time))
         self.desktop_tip = DesktopTip()
         self.systray = SysTrayIcon(None, "tomato sheep clock", (("显示状态", None, self.show_state),),
                                    on_quit=lambda x: self.timer.set_exit_tag(True))
@@ -233,33 +235,29 @@ class PomodoroClock(dict):
         :return:
         """
         self.new_day_build()
-        self._use_time += duration
-        self.config[self.use_time] = self._use_time
+        self.user_time_sec += duration
+        self.config[self.use_time] = self.user_time_sec
         self.save_state()
 
     def add_over_use_time(self, duration: float):
         self.new_day_build()
-        self._over_time += + duration
-        self._use_time += duration
-        self.config[self.over_time] = self._over_time
-        self.config[self.use_time] = self._use_time
+        self.over_time_sec += + duration
+        self.user_time_sec += duration
         self.save_state()
 
     def new_day_build(self):
         # 新的一天重计时
-        if self._today != python_box.date_format(day=True):
-            self._today = python_box.date_format(day=True)
-            self._use_time = 0
-            self._over_time = 0
-            self.config[self.today] = self._today
-            self.config[self.over_time] = self._over_time
+        if self.today_str != python_box.date_format(day=True):
+            self.today_str = python_box.date_format(day=True)
+            self.user_time_sec = 0
+            self.over_time_sec = 0
 
     def save_state(self):
-        python_box.write_config({self.today: self.config.get(self.today), self.use_time: self.config.get(self.use_time),
-                                 self.over_time: self.config.get(self.over_time)}, PomodoroClock.data_ini)
+        python_box.json_dump(PomodoroClock.data_ini,
+                             python_box.object_attr_dump(self, ["today_str", "over_time_sec", "user_time_sec"]))
         if self.send_state:
-            self.entity_use.send_sensor_state(f"{'%.2f' % (self._use_time / 60)}")
-            self.entity_over.send_sensor_state(f"{'%.2f' % (self._over_time / 60)}")
+            self.entity_use.send_sensor_state(f"{'%.2f' % (self.user_time_sec / 60)}")
+            self.entity_over.send_sensor_state(f"{'%.2f' % (self.over_time_sec / 60)}")
 
     def send_tip(self):
         if self.send_state:
@@ -268,7 +266,8 @@ class PomodoroClock(dict):
             self.entity_tip.send_switch_state(False)
 
     def log_msg(self, msg):
-        python_box.log(msg, file="config/log_tomato.log")
+        print(msg)
+        python_box.log(msg, file="config/log_tomato.log", console=False, flush_now=False)
 
 
 if __name__ == '__main__':
@@ -297,14 +296,12 @@ if __name__ == '__main__':
                                                                  default_dict)
         config_tomato_desktop_tip_end = python_box.read_config("config/config_tomato_desktop_tip_end.ini",
                                                                default_dict)
-        data_over_time = python_box.read_config(PomodoroClock.data_ini,
-                                                {PomodoroClock.today: 0, PomodoroClock.use_time: 0,
-                                                 PomodoroClock.over_time: 0})
-        config.update(data_over_time)
+        data_over_time = python_box.json_load(PomodoroClock.data_ini, {})
         if not config:
             print("请配置并重新运行")
             sys.exit(0)
         clock = PomodoroClock(config)
+        python_box.object_attr_load(data_over_time, clock)
         clock.config_tomato_desktop_tip_start = config_tomato_desktop_tip_start
         clock.config_tomato_desktop_tip_end = config_tomato_desktop_tip_end
         clock.connect_mqtt()
