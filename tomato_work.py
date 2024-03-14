@@ -75,7 +75,6 @@ class PomodoroClock(dict):
         self.over_time_sec = 0
 
         self.config = config
-        self.pet = RelaxPet()
         self._exit_tag = None
         self.state = ""
         self.send_state = self.config.get(self.message) == 1
@@ -118,14 +117,6 @@ class PomodoroClock(dict):
     def show_state(self, *args):
         pyautogui.confirm(title=self.state, text=f"{int(self.timer.get_duration() / 60)}分钟")
 
-    def screen_tip(self):
-        try:
-            self.pet.state(1)
-            self.pet.move(10, 1000, 1800, 10, 1)
-            self.pet.state(0)
-        except Exception as e:
-            self.log_msg(e)
-
     def action_start(self):
         self.state = "番茄钟计时开始"
         self.log_msg(self.state)
@@ -159,12 +150,6 @@ class PomodoroClock(dict):
     def run(self):
         work_time = float(config.get(PomodoroClock.tomato_time)) * 60
         relax_need_time = float(config.get(PomodoroClock.tomato_relax_time)) * 60
-        try:
-            self.pet.run()
-            self.pet.state(0)
-        except Exception as e:
-            traceback.print_exc()
-            self.log_msg(e)
         # 开始提示
         text = "番茄钟开始"
         if get_idle_duration() > 5:
@@ -266,8 +251,7 @@ class PomodoroClock(dict):
             self.entity_tip.send_switch_state(False)
 
     def log_msg(self, msg):
-        print(msg)
-        python_box.log(msg, file="config/log_tomato.log", console=False, flush_now=False)
+        python_box.log(msg, file="config/log_tomato.log", console=True, flush_now=True)
 
 
 if __name__ == '__main__':

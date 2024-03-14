@@ -29,21 +29,21 @@ class RelaxPet:
         if duration:
             body["duration"] = duration
         if x1 is not None:
-            response = requests.post(self.app_api + "swap", json=body, timeout=5)
+            response = requests.post(self.app_api + "api", json=body, timeout=5)
         else:
-            response = requests.post(self.app_api + "move", json=body, timeout=5)
+            response = requests.post(self.app_api + "api", json=body, timeout=5)
         if not response.text.startswith("{"):
             print(response.text)
 
     def state(self, transparency: float = 1):
         body = {"transparency": transparency}
-        response = requests.post(self.app_api + "state", json=body, timeout=5)
+        response = requests.post(self.app_api + "api", json=body, timeout=5)
         if not response.text.startswith("{"):
             print(response.text)
 
     def show_path(self, path: str, delay: int = 50, width: int = 150, transparency: float = 0.3):
         body = {"showPath": path, "delay": delay, "width": width, "transparency": transparency}
-        response = requests.post(self.app_api + "ShowPath", json=body, timeout=5)
+        response = requests.post(self.app_api + "api", json=body, timeout=5)
         if not response.text.startswith("{"):
             print(response.text)
 
@@ -54,10 +54,13 @@ class RelaxPet:
 if __name__ == '__main__':
     pet = RelaxPet()
     pet.run()
-    for i in range(50):
-        try:
-            pet.state(1)
-            pet.move(10, 1000, 1800, 10, 1)
-            pet.state(0)
-        except Exception as e:
-            print(e)
+    print("宠物开始运行")
+    pet.state(0.5)
+    print("宠物正在移动到 (10, 110)")
+    pet.move(10, 110)
+    print("宠物正在从 (20, 110) 移动到 (222, 666)，持续 4.5 秒")
+    pet.move(20, 110, 222, 666, 4.5)
+    print("宠物状态持续 1 秒")
+    pet.state(1)
+    print("展示路径：标题 '标题测试'，延迟 2 秒")
+    pet.show_path("标题测试", delay=2000)
