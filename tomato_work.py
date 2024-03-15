@@ -57,7 +57,7 @@ class PomodoroClock(dict):
     use_time = "use time"
     over_time = "over time"
     device = "device"
-    name = "tomato"
+    name = "tag"
     title = "番茄钟"
     tomato_time = "tomato time"
     tomato_relax_time = "tomato relax time"
@@ -267,7 +267,7 @@ if __name__ == '__main__':
                                          ("%s" % PomodoroClock.port): "1883",
                                          ("%s" % PomodoroClock.message): "0#是否发送消息1 0",
                                          ("%s" % PomodoroClock.device): platform.node(),
-                                         ("%s" % PomodoroClock.name): PomodoroClock.name,
+                                         ("%s" % PomodoroClock.name): None,
                                          ("%s" % PomodoroClock.cmd_start_tomato): "None#开始执行命令",
                                          ("%s" % PomodoroClock.cmd_end_tomato): "None#结束执行命令",
                                          ("%s" % PomodoroClock.cmd_finish_tomato): "None#程序结束执行命令", }, )
