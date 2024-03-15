@@ -1,4 +1,5 @@
 # python tomato_work.py
+import platform
 import sys
 import time
 import traceback
@@ -11,7 +12,6 @@ from infi.systray import SysTrayIcon
 
 from common import python_box
 from desktop_esheep import Sheep
-from desktop_pet import RelaxPet
 from tools.server_box.homeassistant_mq_entity import HomeAssistantEntity
 from tools.server_box.mqtt_utils import MqttBase
 from tools.tomato_work.friendly_tip import DesktopTip
@@ -56,6 +56,7 @@ class PomodoroClock(dict):
     today = "today"
     use_time = "use time"
     over_time = "over time"
+    device = "device"
     name = "tomato"
     title = "番茄钟"
     tomato_time = "tomato time"
@@ -90,14 +91,14 @@ class PomodoroClock(dict):
         self.schedule_end = None
         if self.send_state:
             def will_set(client: mqtt.Client):
-                tmp = HomeAssistantEntity(None, self.name)
+                tmp = HomeAssistantEntity(None, config.get(self.name), config.get(self.device))
                 client.will_set(tmp.status_topic, "offline")
 
             self.base_mqtt = MqttBase(self.config.get(self.host), int(self.config.get(self.port)), None, will_set,
                                       connect_now=False)
-            self.entity_use = HomeAssistantEntity(self.base_mqtt, self.name)
-            self.entity_over = HomeAssistantEntity(self.base_mqtt, self.name)
-            self.entity_tip = HomeAssistantEntity(self.base_mqtt, self.name)
+            self.entity_use = HomeAssistantEntity(self.base_mqtt, config.get(self.name), config.get(self.device))
+            self.entity_over = HomeAssistantEntity(self.base_mqtt, config.get(self.name), config.get(self.device))
+            self.entity_tip = HomeAssistantEntity(self.base_mqtt, config.get(self.name), config.get(self.device))
 
     def __del__(self):
         self.sheep.remove_all()
@@ -265,6 +266,8 @@ if __name__ == '__main__':
                                          ("%s" % PomodoroClock.host): "localhost",
                                          ("%s" % PomodoroClock.port): "1883",
                                          ("%s" % PomodoroClock.message): "0#是否发送消息1 0",
+                                         ("%s" % PomodoroClock.device): platform.node(),
+                                         ("%s" % PomodoroClock.name): PomodoroClock.name,
                                          ("%s" % PomodoroClock.cmd_start_tomato): "None#开始执行命令",
                                          ("%s" % PomodoroClock.cmd_end_tomato): "None#结束执行命令",
                                          ("%s" % PomodoroClock.cmd_finish_tomato): "None#程序结束执行命令", }, )
