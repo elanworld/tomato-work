@@ -10,6 +10,7 @@ import paho.mqtt.client as mqtt
 import pyautogui
 from infi.systray import SysTrayIcon
 
+
 from common import python_box
 from desktop_esheep import Sheep
 from tools.server_box.homeassistant_mq_entity import HomeAssistantEntity
@@ -127,7 +128,7 @@ class PomodoroClock(dict):
         # 桌面提示
         if self.config_tomato_desktop_tip_start and self.config_tomato_desktop_tip_start.get("enable") == 1:
             self.desktop_tip.pet.run()
-            self.schedule_start = self.desktop_tip.start_schedule(self.config_tomato_desktop_tip_start, None)
+            self.schedule_start = self.desktop_tip.start_schedule_interval(self.config_tomato_desktop_tip_start, None)
         self.timer.init()
 
     def action_end(self):
@@ -139,7 +140,7 @@ class PomodoroClock(dict):
         if self.schedule_start:
             self.schedule_start.shutdown()
         if self.config_tomato_desktop_tip_end and self.config_tomato_desktop_tip_end.get("enable") == 1:
-            self.schedule_end = self.desktop_tip.start_schedule(self.config_tomato_desktop_tip_end, None)
+            self.schedule_end = self.desktop_tip.start_schedule_interval(self.config_tomato_desktop_tip_end, None)
 
     def action_finish(self):
         self.sheep.remove_all()
