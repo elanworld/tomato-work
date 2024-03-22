@@ -41,9 +41,10 @@ class RelaxPet:
         if not response.text.startswith("{"):
             print(response.text)
 
-    def show_path(self, path: str, delay: int = 50, width: int = 150, transparency: float = 0.3):
-        body = {"showPath": path, "delay": delay, "width": width, "transparency": transparency}
-        response = requests.post(self.app_api + "api", json=body, timeout=5)
+    def show_path(self, path: str = None, delay: int = 50, width: int = 150, transparency: float = 0.3,
+                  config: dict = None):
+        body = config if config else {"showPath": path, "delay": delay, "width": width, "transparency": transparency}
+        response = requests.post(self.app_api + "api", json=body, timeout=((config.get("delay") or 5000) + 1000) / 1000)
         if not response.text.startswith("{"):
             print(response.text)
 
