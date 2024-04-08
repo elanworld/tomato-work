@@ -127,7 +127,6 @@ class PomodoroClock(dict):
             self.log_msg(python_box.command(config.get(self.cmd_start_tomato)))
         # 桌面提示
         if self.config_tomato_desktop_tip_start and self.config_tomato_desktop_tip_start.get("enable") == 1:
-            self.desktop_tip.pet.run()
             self.schedule_start = self.desktop_tip.start_schedule_interval(self.config_tomato_desktop_tip_start, None)
         self.timer.init()
 
