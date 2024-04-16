@@ -7,7 +7,7 @@ from collections import OrderedDict
 from typing import Callable
 
 import paho.mqtt.client as mqtt
-import pyautogui
+import windows_tip
 from infi.systray import SysTrayIcon
 
 
@@ -16,7 +16,7 @@ from desktop_esheep import Sheep
 from tools.server_box.homeassistant_mq_entity import HomeAssistantEntity
 from tools.server_box.mqtt_utils import MqttBase
 from tools.tomato_work.friendly_tip import DesktopTip
-from win_util import get_idle_duration, get_start_time, move_window_to_second_screen
+import win32_util
 
 
 class Timer:
@@ -37,7 +37,7 @@ class Timer:
                   loop_do_time: int = None):
         start = time.time()
         for i in range(int(sec)):
-            idle_duration = get_idle_duration()
+            idle_duration = win32_util.get_idle_duration()
             if need_ide and need_ide <= idle_duration:
                 return time.time() - start
             if self.exit_tag is True:
@@ -117,7 +117,7 @@ class PomodoroClock(dict):
             self.entity_tip.send_switch_config_topic("tip", "番茄休息提醒", None)
 
     def show_state(self, *args):
-        pyautogui.confirm(title=self.state, text=f"{int(self.timer.get_duration() / 60)}分钟")
+        windows_tip.confirm(title=self.state, text=f"{int(self.timer.get_duration() / 60)}分钟")
 
     def action_start(self):
         self.state = "番茄钟计时开始"
@@ -154,15 +154,15 @@ class PomodoroClock(dict):
         relax_need_time = float(config.get(PomodoroClock.tomato_relax_time)) * 60
         # 开始提示
         text = "番茄钟开始"
-        if get_idle_duration() > 5:
-            confirm = pyautogui.confirm(title=self.title, text=text, timeout=1 * 1000)
+        if win32_util.get_idle_duration() > 5:
+            confirm = windows_tip.confirm(title=self.title, text=text, timeout=1 * 1000)
             if confirm == 'Cancel':
                 return
         # 空闲时等待五小时
         wait_time = 0
         while True:
-            if get_idle_duration() < 2:
-                confirm = pyautogui.confirm(title=self.title, text=text)
+            if win32_util.get_idle_duration() < 2:
+                confirm = windows_tip.confirm(title=self.title, text=text)
                 if confirm == 'Cancel':
                     return
                 break
@@ -182,7 +182,7 @@ class PomodoroClock(dict):
             return
         self.action_end()
         self.add_use_time(work_time)
-        pyautogui.alert(title=self.title, text="开始休息", timeout=3 * 1000)
+        windows_tip.alert(title=self.title, text="开始休息", timeout=3 * 1000)
         self.add_sheep(self.sheep)
         # 休息并提醒
         count = 0
@@ -207,17 +207,17 @@ class PomodoroClock(dict):
 
     @staticmethod
     def move_windows(*args, **kwargs):
-        if get_idle_duration() < 15:
-            move_window_to_second_screen()
+        if win32_util.get_idle_duration() < 15:
+            win32_util.move_window_to_second_screen()
 
     @staticmethod
     def add_sheep(sheep: Sheep):
         try:
             sheep.add()
         except PermissionError as e:
-            pyautogui.confirm(title="异常", text=f"权限异常，可尝试卸载esheep重新安装\n{e.__str__()}", timeout=10 * 1000)
+            windows_tip.confirm(title="异常", text=f"权限异常，可尝试卸载esheep重新安装\n{e.__str__()}", timeout=10 * 1000)
         except Exception as e:
-            pyautogui.confirm(title=f"{type(e)}异常", text=e.__str__(), timeout=10 * 1000)
+            windows_tip.confirm(title=f"{type(e)}异常", text=e.__str__(), timeout=10 * 1000)
 
     def add_use_time(self, duration: float):
         """
@@ -298,7 +298,7 @@ if __name__ == '__main__':
         clock.config_tomato_desktop_tip_end = config_tomato_desktop_tip_end
         clock.connect_mqtt()
 
-        if get_start_time() < 200:
+        if win32_util.get_start_time() < 200:
             time.sleep(300)  # 开机等待
         for _ in range(config.get(PomodoroClock.run_loop)):
             clock.run()
