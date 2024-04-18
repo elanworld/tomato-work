@@ -7,16 +7,15 @@ from collections import OrderedDict
 from typing import Callable
 
 import paho.mqtt.client as mqtt
-import windows_tip
 from infi.systray import SysTrayIcon
 
-
+import win32_util
+import windows_tip
 from common import python_box
 from desktop_esheep import Sheep
 from tools.server_box.homeassistant_mq_entity import HomeAssistantEntity
 from tools.server_box.mqtt_utils import MqttBase
 from tools.tomato_work.friendly_tip import DesktopTip
-import win32_util
 
 
 class Timer:
@@ -261,38 +260,38 @@ class PomodoroClock(dict):
 
 
 if __name__ == '__main__':
-    try:
-        config = python_box.read_config(PomodoroClock.ini,
-                                        {("%s" % PomodoroClock.tomato_time): 25,
-                                         ("%s" % PomodoroClock.tomato_relax_time): 5,
-                                         ("%s" % PomodoroClock.run_loop): 1,
-                                         ("%s" % PomodoroClock.move_window_time_start): None,
-                                         ("%s" % PomodoroClock.move_window_time_end): None,
-                                         ("%s" % PomodoroClock.host): "localhost",
-                                         ("%s" % PomodoroClock.port): "1883",
-                                         ("%s" % PomodoroClock.message): "0#是否发送消息1 0",
-                                         ("%s" % PomodoroClock.device): platform.node(),
-                                         ("%s" % PomodoroClock.name): None,
-                                         ("%s" % PomodoroClock.cmd_start_tomato): "None#开始执行命令",
-                                         ("%s" % PomodoroClock.cmd_end_tomato): "None#结束执行命令",
-                                         ("%s" % PomodoroClock.cmd_finish_tomato): "None#程序结束执行命令", }, )
-        default_dict = {"enable": "0", "task1": {
-            "showPath": "path/to/png",
-            "delay": 50,
-            "width": 150,
-            "transparency": 0.3,
-            "cron": "*/10 * * * *",
+    config = python_box.read_config(PomodoroClock.ini,
+                                    {("%s" % PomodoroClock.tomato_time): 25,
+                                     ("%s" % PomodoroClock.tomato_relax_time): 5,
+                                     ("%s" % PomodoroClock.run_loop): 1,
+                                     ("%s" % PomodoroClock.move_window_time_start): None,
+                                     ("%s" % PomodoroClock.move_window_time_end): None,
+                                     ("%s" % PomodoroClock.host): "localhost",
+                                     ("%s" % PomodoroClock.port): "1883",
+                                     ("%s" % PomodoroClock.message): "0#是否发送消息1 0",
+                                     ("%s" % PomodoroClock.device): platform.node(),
+                                     ("%s" % PomodoroClock.name): None,
+                                     ("%s" % PomodoroClock.cmd_start_tomato): "None#开始执行命令",
+                                     ("%s" % PomodoroClock.cmd_end_tomato): "None#结束执行命令",
+                                     ("%s" % PomodoroClock.cmd_finish_tomato): "None#程序结束执行命令", }, )
+    default_dict = {"enable": "0", "task1": {
+        "showPath": "path/to/png",
+        "delay": 50,
+        "width": 150,
+        "transparency": 0.3,
+        "cron": "*/10 * * * *",
 
-        }}
-        config_tomato_desktop_tip_start = python_box.read_config("config/config_tomato_desktop_tip_start.ini",
-                                                                 default_dict)
-        config_tomato_desktop_tip_end = python_box.read_config("config/config_tomato_desktop_tip_end.ini",
-                                                               default_dict)
-        data_over_time = python_box.json_load(PomodoroClock.data_ini, {})
-        if not config:
-            print("请配置并重新运行")
-            sys.exit(0)
-        clock = PomodoroClock(config)
+    }}
+    config_tomato_desktop_tip_start = python_box.read_config("config/config_tomato_desktop_tip_start.ini",
+                                                             default_dict)
+    config_tomato_desktop_tip_end = python_box.read_config("config/config_tomato_desktop_tip_end.ini",
+                                                           default_dict)
+    data_over_time = python_box.json_load(PomodoroClock.data_ini, {})
+    if not config:
+        print("请配置并重新运行")
+        sys.exit(0)
+    clock = PomodoroClock(config)
+    try:
         python_box.object_attr_load(data_over_time, clock)
         clock.config_tomato_desktop_tip_start = config_tomato_desktop_tip_start
         clock.config_tomato_desktop_tip_end = config_tomato_desktop_tip_end
@@ -304,4 +303,5 @@ if __name__ == '__main__':
             clock.run()
         clock.__del__()
     except Exception as e:
+        clock.__del__()
         traceback.print_exc()
