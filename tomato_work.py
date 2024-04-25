@@ -51,6 +51,7 @@ class PomodoroClock(dict):
     host = "mq host"
     port = "mq port"
     message = "send message"
+    tip_wait_full_screen = "tip wait full screen"
     ini = "config/config_tomato.ini"
     data_ini = "config/data_day_over_time.ini"
     today = "today"
@@ -116,7 +117,13 @@ class PomodoroClock(dict):
             self.entity_tip.send_switch_config_topic("tip", "番茄休息提醒", None)
 
     def show_state(self, *args):
-        windows_tip.confirm(title=self.state, text=f"{int(self.timer.get_duration() / 60)}分钟")
+        self.window_tip(title=self.state, text=f"{int(self.timer.get_duration() / 60)}分钟", confirm=True)
+
+    def window_tip(self, title="番茄钟", text=None, timeout=None, confirm=True):
+        if confirm:
+            return windows_tip.confirm(title=title, text=text, timeout=timeout, wait_time=2 * 60 * 60)
+        else:
+            return windows_tip.alert(title=title, text=text, timeout=timeout, wait_time=2 * 60 * 60)
 
     def action_start(self):
         self.state = "番茄钟计时开始"
@@ -154,15 +161,15 @@ class PomodoroClock(dict):
         # 开始提示
         text = "番茄钟开始"
         if win32_util.get_idle_duration() > 5:
-            confirm = windows_tip.confirm(title=self.title, text=text, timeout=1 * 1000)
-            if confirm == 'Cancel':
+            confirm = self.window_tip(title=self.title, text=text, timeout=1 * 1000, confirm=True)
+            if not confirm:
                 return
         # 空闲时等待五小时
         wait_time = 0
         while True:
             if win32_util.get_idle_duration() < 2:
-                confirm = windows_tip.confirm(title=self.title, text=text)
-                if confirm == 'Cancel':
+                confirm = self.window_tip(title=self.title, text=text, confirm=True)
+                if not confirm:
                     return
                 break
             time.sleep(2)
@@ -181,7 +188,7 @@ class PomodoroClock(dict):
             return
         self.action_end()
         self.add_use_time(work_time)
-        windows_tip.alert(title=self.title, text="开始休息", timeout=3 * 1000)
+        self.window_tip(title=self.title, text="开始休息", timeout=3 * 1000, confirm=False)
         self.add_sheep(self.sheep)
         # 休息并提醒
         count = 0
@@ -209,14 +216,13 @@ class PomodoroClock(dict):
         if win32_util.get_idle_duration() < 15:
             win32_util.move_window_to_second_screen()
 
-    @staticmethod
-    def add_sheep(sheep: Sheep):
+    def add_sheep(self, sheep: Sheep):
         try:
             sheep.add()
         except PermissionError as e:
-            windows_tip.confirm(title="异常", text=f"权限异常，可尝试卸载esheep重新安装\n{e.__str__()}", timeout=10 * 1000)
+            self.window_tip(title="异常", text=f"权限异常，可尝试卸载esheep重新安装\n{e.__str__()}", timeout=10 * 1000, confirm=True)
         except Exception as e:
-            windows_tip.confirm(title=f"{type(e)}异常", text=e.__str__(), timeout=10 * 1000)
+            self.window_tip(title=f"{type(e)}异常", text=e.__str__(), timeout=10 * 1000, confirm=True)
 
     def add_use_time(self, duration: float):
         """
@@ -269,6 +275,7 @@ if __name__ == '__main__':
                                      ("%s" % PomodoroClock.host): "localhost",
                                      ("%s" % PomodoroClock.port): "1883",
                                      ("%s" % PomodoroClock.message): "0#是否发送消息1 0",
+                                     ("%s" % PomodoroClock.tip_wait_full_screen): "0#提示等待全体退出1 0",
                                      ("%s" % PomodoroClock.device): platform.node(),
                                      ("%s" % PomodoroClock.name): None,
                                      ("%s" % PomodoroClock.cmd_start_tomato): "None#开始执行命令",

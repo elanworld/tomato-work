@@ -3,18 +3,18 @@ import pyautogui
 import win32_util
 
 
-def confirm(title="", text="", **kwargs):
+def confirm(wait_time=3600, **kwargs):
     start = time.time()
     while win32_util.is_window_fullscreen():
-        if time.time() - start > 3600:
+        if time.time() - start > wait_time:
             break
         time.sleep(1)
-    return pyautogui.confirm(title=title, text=text, **kwargs)
+    return pyautogui.confirm(**kwargs) != 'Cancel'
 
-def alert(title="", text="", **kwargs):
+def alert(wait_time=3600, **kwargs):
     start = time.time()
     while win32_util.is_window_fullscreen():
-        if time.time() - start > 3600:
+        if time.time() - start > wait_time:
             break
         time.sleep(1)
-    return pyautogui.alert(title=title, text=text, **kwargs)
+    return pyautogui.alert(**kwargs)
