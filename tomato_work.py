@@ -13,9 +13,9 @@ import win32_util
 import windows_tip
 from common import python_box
 from desktop_esheep import Sheep
+from friendly_tip import DesktopTip
 from tools.server_box.homeassistant_mq_entity import HomeAssistantEntity
 from tools.server_box.mqtt_utils import MqttBase
-from tools.tomato_work.friendly_tip import DesktopTip
 
 
 class Timer:
@@ -263,6 +263,13 @@ class PomodoroClock(dict):
 
     def log_msg(self, msg):
         python_box.log(msg, file="config/log_tomato.log", console=True, flush_now=True)
+
+
+def for_gen_code():
+    python_box.read_config
+    python_box.json_load
+    python_box.object_attr_load
+    python_box.random_str  # mqtt_utils dependence
 
 
 if __name__ == '__main__':
