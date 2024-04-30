@@ -1,8 +1,6 @@
 import ctypes
 import random
 import time
-from ctypes import Structure, c_uint
-from ctypes import windll, sizeof, byref
 from typing import List
 
 import pyautogui
@@ -11,17 +9,18 @@ import win32con
 import win32gui
 
 
+
 def get_idle_duration():
-    class LASTINPUTINFO(Structure):
+    class LASTINPUTINFO(ctypes.Structure):
         _fields_ = [
-            ('cbSize', c_uint),
-            ('dwTime', c_uint),
+            ('cbSize', ctypes.c_uint),
+            ('dwTime', ctypes.c_uint),
         ]
 
     lastInputInfo = LASTINPUTINFO()
-    lastInputInfo.cbSize = sizeof(lastInputInfo)
-    windll.user32.GetLastInputInfo(byref(lastInputInfo))
-    millis = windll.kernel32.GetTickCount() - lastInputInfo.dwTime
+    lastInputInfo.cbSize = ctypes.sizeof(lastInputInfo)
+    ctypes.windll.user32.GetLastInputInfo(ctypes.byref(lastInputInfo))
+    millis = ctypes.windll.kernel32.GetTickCount() - lastInputInfo.dwTime
     return int(millis / 1000.0)
 
 
