@@ -14,8 +14,8 @@ import windows_tip
 from common import python_box
 from desktop_esheep import Sheep
 from friendly_tip import DesktopTip
-from tools.server_box.homeassistant_mq_entity import HomeAssistantEntity
-from tools.server_box.mqtt_utils import MqttBase
+from tools.server_box.mqtt.homeassistant_mq_entity import HomeAssistantEntity
+from tools.server_box.mqtt.mqtt_utils import MqttBase
 
 
 class Timer:
@@ -269,6 +269,7 @@ def for_gen_code():
     python_box.read_config
     python_box.json_load
     python_box.object_attr_load
+    python_box.python_box.is_admin
     python_box.random_str  # mqtt_utils dependence
 
 

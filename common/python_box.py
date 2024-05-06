@@ -58,6 +58,11 @@ def object_attr_load(obj_dict, obj):
     for key, value in obj_dict.items():
         setattr(obj, key, value)
     return obj
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
 def random_str():
     letters = string.ascii_lowercase
     return ''.join(random.choice(letters) for i in range(10))
