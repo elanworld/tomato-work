@@ -1,6 +1,6 @@
 # generate from base common code
 from enum import Enum
-from mqtt_utils import MqttBase
+from .mqtt_utils import MqttBase
 import json
 import logging
 import platform
