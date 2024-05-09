@@ -265,14 +265,6 @@ class PomodoroClock(dict):
         python_box.log(msg, file="config/log_tomato.log", console=True, flush_now=True)
 
 
-def for_gen_code():
-    python_box.read_config
-    python_box.json_load
-    python_box.object_attr_load
-    python_box.python_box.is_admin
-    python_box.random_str  # mqtt_utils dependence
-
-
 if __name__ == '__main__':
     config = python_box.read_config(PomodoroClock.ini,
                                     {("%s" % PomodoroClock.tomato_time): 25,

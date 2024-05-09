@@ -9,13 +9,13 @@ import subprocess
 import threading
 import time
 from queue import Queue, Empty
-import random
 import io
-import logging
 from typing.io import IO
 import os
 import platform
+import logging
 import sys
+import random
 def date_format(_date: Union[float, str] = None, fmt="%Y-%m-%d %H:%M",
                 from_fmt="%Y-%m-%d %H:%M", day=False) -> str:
     """
@@ -58,14 +58,6 @@ def object_attr_load(obj_dict, obj):
     for key, value in obj_dict.items():
         setattr(obj, key, value)
     return obj
-def is_admin():
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
-        return False
-def random_str():
-    letters = string.ascii_lowercase
-    return ''.join(random.choice(letters) for i in range(10))
 def command(cmd: Union[str, list]):
     if type(cmd) == list:
         cmd = "&&".join(cmd)
@@ -213,3 +205,53 @@ def log(msg, file=None, console=True, fmt='%(asctime)s - %(levelname)s - %(messa
     if flush_now:
         for h in handlers:
             h.flush()
+def thread_runner(method, *args, **kwargs):
+    threads = []
+    if type(method) == list:
+        for method in method:
+            thread = threading.Thread(target=method, args=args, kwargs=kwargs)
+            threads.append(thread)
+    else:
+        thread = threading.Thread(target=method, args=args, kwargs=kwargs)
+        threads.append(thread)
+    for thread in threads:
+        thread.start()
+    return threads
+def dir_list(directory=None, filter_str="", return_full_path=True, walk=False, return_dir=False):
+    if directory is None:
+        directory = "."
+    if os.path.exists(directory):
+        if os.path.isfile(directory):
+            return [directory]
+    else:
+        return []
+    file_list = []
+    for path, dirs, files in os.walk(directory):
+        for file in files:
+            if return_full_path:
+                filepath = os.path.join(os.path.abspath(path), file)
+            else:
+                filepath = os.path.relpath(os.path.join(os.path.abspath(path), file), directory)
+            file_list.append(filepath)
+        if return_dir:
+            for dire in dirs:
+                if return_full_path:
+                    filepath = os.path.join(os.path.abspath(path), dire)
+                else:
+                    filepath = os.path.relpath(os.path.join(os.path.abspath(path), dire), directory)
+                file_list.append(filepath)
+        if walk is False:
+            break
+    if filter_str:
+        for i in range(len(file_list) - 1, -1, -1):
+            if not re.search(filter_str, file_list[i]):
+                file_list.remove(file_list[i])
+    return file_list
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
+def random_str():
+    letters = string.ascii_lowercase
+    return ''.join(random.choice(letters) for i in range(10))
