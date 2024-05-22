@@ -166,8 +166,10 @@ def move_window_to_second_screen(device_scale: List[tuple] = None):  # device_sc
         time.sleep(0.05)  # 有时窗口不是最大尺寸
         win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
 
+
 def get_screen_resolution():
     return win32api.GetSystemMetrics(0), win32api.GetSystemMetrics(1)
+
 
 # 检测当前活动窗口是否全屏
 def is_window_fullscreen():
@@ -176,6 +178,108 @@ def is_window_fullscreen():
     screen_width, screen_height = get_screen_resolution()
 
     return (win_width, win_height) == (screen_width, screen_height)
+
+
+def get_physical_resolution(device_name):
+    # 获取指定显示器的分辨率设置
+    dm = win32api.EnumDisplaySettings(device_name, win32con.ENUM_CURRENT_SETTINGS)
+    physical_width = dm.PelsWidth
+    physical_height = dm.PelsHeight
+    return physical_width, physical_height
+
+
+def get_screen_boundaries():
+    monitors = win32api.EnumDisplayMonitors(None, None)
+    boundaries = []
+    for monitor in monitors:
+        device_name = win32api.GetMonitorInfo(monitor[0])['Device']
+        physical_width, physical_height = get_physical_resolution(device_name)
+        x1 = monitor[2][0]
+        y1 = monitor[2][1]
+        boundaries.append((x1, y1, x1 + physical_width, y1 + physical_height))
+        # boundaries.append((monitor[2]))
+    return boundaries
+
+
+def create_polygon(monitors):
+    points = []
+    for mon_left, mon_top, mon_right, mon_bottom in monitors:
+        points.append((mon_left, mon_top))
+        points.append((mon_right, mon_top))
+        points.append((mon_right, mon_bottom))
+        points.append((mon_left, mon_bottom))
+    return Polygon(points)
+
+
+def is_center_in_screen(point, monitor):
+    center_x, center_y = point
+    mon_left, mon_top, mon_right, mon_bottom = monitor
+    if mon_left <= center_x <= mon_right and mon_top <= center_y <= mon_bottom:
+        return True
+    return False
+
+
+def move_right_value_in_screen(monitors, window, move):
+    """预判移动后窗口依旧在屏幕内的值"""
+    left, top, right, bottom = window
+    move_x, move_y = move
+    x_in = 0
+    y_in = 0
+    for monitor in monitors:
+        if is_center_in_screen((left + move_x, top), monitor):
+            x_in += 1  # 移动后左x 在屏幕内
+        if is_center_in_screen((right + move_x, bottom), monitor):
+            x_in += 1
+        if is_center_in_screen((left, top + move_y), monitor):
+            y_in += 1
+        if is_center_in_screen((right, bottom + move_y), monitor):
+            y_in += 1
+    if x_in < 2:  # 移动x后在屏幕内的次数不炒股两次
+        move_x = -move_x
+    if y_in < 2:  #
+        move_y = -move_y
+    print(monitors, window, move)
+    return move_x, move_y
+
+
+def is_in_screen(monitors, window):
+    """当前在屏幕内"""
+    left, top, right, bottom = window
+    left_in = False
+    right_in = False
+    for monitor in monitors:
+        if is_center_in_screen((left, top), monitor):
+            left_in = True
+        if is_center_in_screen((right, bottom), monitor):
+            right_in = True
+    if left_in and right_in:
+        return True
+    return False
+
+
+def move_window(step_x=10, step_y=10):
+    # 获取当前活跃的窗口句柄
+    hwnd = win32gui.GetForegroundWindow()
+    # 获取当前窗口的位置和大小
+    rect_now = win32gui.GetWindowRect(hwnd)
+    left, top, right, bottom = rect_now
+
+    # 获取所有屏幕的边界
+    monitors = get_screen_boundaries()
+    if is_in_screen(monitors, rect_now):
+        # 移动窗口到新的位置
+        win32gui.SetWindowPos(hwnd, win32con.HWND_TOP, left + step_x, top + step_y, 0, 0,
+                              win32con.SWP_NOSIZE | win32con.SWP_NOZORDER)
+        if is_in_screen(monitors, win32gui.GetWindowRect(hwnd)):  # 移动后还在屏幕内
+            return step_x, step_y
+    # 计算新的位置
+    step_x, step_y = move_right_value_in_screen(monitors, rect_now, (step_x, step_y))
+
+    # 移动窗口到新的位置
+    win32gui.SetWindowPos(hwnd, win32con.HWND_TOP, left + step_x, top + step_y, 0, 0,
+                          win32con.SWP_NOSIZE | win32con.SWP_NOZORDER)
+    return step_x, step_y
+
 
 
 if __name__ == '__main__':
