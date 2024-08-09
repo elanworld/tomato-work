@@ -199,8 +199,8 @@ def log(msg, file=None, console=True, fmt='%(asctime)s - %(levelname)s - %(messa
             console_handler.setFormatter(logging.Formatter(fmt))
             console_handler.set_name("base_log_handler")
             logging.root.addHandler(console_handler)
-        logging.root.setLevel(logging.DEBUG)
         handlers = logging.root.handlers
+        logging.basicConfig(format='%(levelname)s - %(message)s', level=logging.DEBUG)
     logging.info(msg)
     if flush_now:
         for h in handlers:
