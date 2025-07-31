@@ -158,6 +158,11 @@ class PomodoroClock(dict):
     def run(self):
         work_time = float(config.get(PomodoroClock.tomato_time)) * 60
         relax_need_time = float(config.get(PomodoroClock.tomato_relax_time)) * 60
+        # 电脑无操作/关闭屏幕
+        while win32_util.get_idle_duration() > 60:
+            time.sleep(5)
+            if time.time() - self.timer.start > 60 * 30:
+                return
         # 开始提示
         text = "番茄钟开始"
         if win32_util.get_idle_duration() > 5:
